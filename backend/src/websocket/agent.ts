@@ -6,6 +6,19 @@ import { eventBus } from '../events/pubsub';
 import { AppDataSource } from '../db/data-source';
 import { AgentContainer } from '../entities/AgentContainer';
 import { randomUUID, createVerify } from 'crypto';
+import Redis from 'ioredis';
+
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
+async function checkReplayAttack(reqTime: number, fingerprint: string): Promise<boolean> {
+  const key = `reqTime:${fingerprint}:${reqTime}`;
+  const exists = await redis.exists(key);
+  if (exists) {
+    return true;
+  }
+  await redis.setex(key, 300, '1');
+  return false;
+}
 
 interface AgentSession {
   clientId: string;
@@ -72,6 +85,17 @@ export class AgentWebSocket {
           messageId: randomUUID()
         }));
         ws.close(1008, 'Handshake expired');
+        return;
+      }
+
+      if (await checkReplayAttack(timestamp, fingerprint)) {
+        ws.send(JSON.stringify({
+          type: 'handshake_ack',
+          data: { status: 'failed', error: 'Replay attack detected' },
+          timestamp: Date.now(),
+          messageId: randomUUID()
+        }));
+        ws.close(1008, 'Replay attack detected');
         return;
       }
       
@@ -160,12 +184,7 @@ export class AgentWebSocket {
           break;
           
         case 'heartbeat':
-          this.manager.sendToClient(clientId, {
-            type: 'pong',
-            data: { timestamp: message.timestamp },
-            timestamp: Date.now(),
-            messageId: randomUUID()
-          });
+          this.sendToAgent(session.fingerprint, 'pong', { timestamp: message.timestamp });
           break;
           
         default:
@@ -188,52 +207,28 @@ export class AgentWebSocket {
   private setupEventListeners(): void {
     // 認証許可
     eventBus.subscribe('authorization:granted', async (data) => {
-      const clientId = this.agentByFingerprint.get(data.fingerprint);
-      if (clientId) {
-        this.manager.sendToClient(clientId, {
-          type: 'authorization_granted',
-          data: {
-            requestId: data.requestId,
-            authorizationId: data.authorizationId,
-            grantedKey: data.grantedKey,
-            expiresAt: data.expiresAt,
-            realm: data.realm
-          },
-          timestamp: Date.now(),
-          messageId: randomUUID()
-        });
-      }
+      this.sendToAgent(data.fingerprint, 'authorization_granted', {
+        requestId: data.requestId,
+        authorizationId: data.authorizationId,
+        grantedKey: data.grantedKey,
+        expiresAt: data.expiresAt,
+        realm: data.realm
+      });
     });
     
     // 認証拒否
     eventBus.subscribe('authorization:denied', async (data) => {
-      const clientId = this.agentByFingerprint.get(data.fingerprint);
-      if (clientId) {
-        this.manager.sendToClient(clientId, {
-          type: 'authorization_denied',
-          data: {
-            requestId: data.requestId,
-            reason: data.reason,
-          },
-          timestamp: Date.now(),
-          messageId: randomUUID()
-        });
-      }
+      this.sendToAgent(data.fingerprint, 'authorization_denied', {
+        requestId: data.requestId,
+        reason: data.reason,
+      });
     });
     
     // 認証取り消し
     eventBus.subscribe('authorization:revoked', async (data) => {
-      const clientId = this.agentByFingerprint.get(data.fingerprint);
-      if (clientId) {
-        this.manager.sendToClient(clientId, {
-          type: 'authorization_revoked',
-          data: {
-            authorizationId: data.authorizationId,
-          },
-          timestamp: Date.now(),
-          messageId: randomUUID()
-        });
-      }
+      this.sendToAgent(data.fingerprint, 'authorization_revoked', {
+        authorizationId: data.authorizationId,
+      });
     });
   }
 

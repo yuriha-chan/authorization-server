@@ -1,12 +1,12 @@
 // src/websocket/manager.ts
-import { WebSocket } from 'ws';
+import type { WebSocket } from './types';
 import { randomUUID } from 'crypto';
-import { WebSocketMessage, Subscription } from './types';
+import { WebSocketMessage, ClientMessage, Subscription } from './types';
 
 export class WebSocketManager {
   private clients: Map<string, WebSocket> = new Map();
   private subscriptions: Map<string, Subscription> = new Map();
-  private messageHandlers: Map<string, Array<(message: WebSocketMessage) => void>> = new Map();
+  private messageHandlers: Map<string, Array<(clientId: string, message: ClientMessage) => void>> = new Map();
 
   constructor() {
     this.setupHeartbeat();
@@ -31,7 +31,7 @@ export class WebSocketManager {
     this.subscriptions.set(clientId, {
       clientId,
       topics: new Set(),
-      ws
+      ws: ws as any
     });
 
     ws.on('pong', () => {

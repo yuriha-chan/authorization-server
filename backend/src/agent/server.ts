@@ -1,4 +1,5 @@
 // src/agent/server.ts
+import Redis from 'ioredis';
 import express from 'express';
 import { Server as HttpServer } from 'http';
 import { AgentWebSocket } from '../websocket/agent';
@@ -9,6 +10,18 @@ import { Authorization } from '../entities/Authorization';
 import { AuthorizationRequest } from '../entities/AuthorizationRequest';
 import { eventBus } from '../events/pubsub';
 import { z } from 'zod';
+
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
+async function checkReplayAttack(reqTime: number, fingerprint: string): Promise<boolean> {
+  const key = `reqTime:${fingerprint}:${reqTime}`;
+  const exists = await redis.exists(key);
+  if (exists) {
+    return true;
+  }
+  await redis.setex(key, 300, '1');
+  return false;
+}
 
 const app = express();
 const port = parseInt(process.env.AGENT_PORT || '8080');
@@ -25,11 +38,14 @@ async function verifySignature(req: express.Request, res: express.Response, next
     return res.status(401).json({ error: 'Missing signature headers' });
   }
  
-  // TODO: save reqTime 
   const now = Date.now();
   const reqTime = parseInt(timestamp);
   if (Math.abs(now - reqTime) > 300000) {
     return res.status(401).json({ error: 'Request expired' });
+  }
+
+  if (await checkReplayAttack(reqTime, fingerprint)) {
+    return res.status(401).json({ error: 'Replay attack detected' });
   }
   
   // Agentの公開鍵を取得

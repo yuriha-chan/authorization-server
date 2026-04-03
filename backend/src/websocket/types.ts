@@ -43,6 +43,10 @@ export interface ClientMessage extends WebSocketMessage {
     | 'mark_request_viewed';
 }
 
+import type { WebSocket as WS } from 'ws';
+
+export type WebSocket = WS & { isAlive?: boolean };
+
 export interface Subscription {
   clientId: string;
   topics: Set<string>;

@@ -223,9 +223,7 @@ export class AdminWebSocket {
   broadcastToAdmins(type: string, data: any): void {
     this.manager.broadcast('admin_all', {
       type,
-      data,
-      timestamp: Date.now(),
-      messageId: randomUUID()
+      data
     });
   }
 

@@ -5,7 +5,7 @@ import { AuthorizationRequest } from '../../entities/AuthorizationRequest';
 import { Authorization } from '../../entities/Authorization';
 import { AgentContainer } from '../../entities/AgentContainer';
 import { eventBus } from '../../events/pubsub';
-import { wss } from '../server';
+import { adminWebSocket } from '../server';
 
 export const requestsRouter = Router();
 
@@ -54,7 +54,7 @@ requestsRouter.post('/:id/approve', async (req, res) => {
     });
     
     // WebSocketでAdminに通知
-    wss.broadcast('request_approved', { requestId: request.id });
+    adminWebSocket.broadcastToAdmins('request_approved', { requestId: request.id });
     
     // Redis経由でAgentプロセスに通知
     await eventBus.publish('authorization:granted', {
@@ -93,7 +93,7 @@ requestsRouter.post('/:id/deny', async (req, res) => {
     await requestRepo.save(request);
     
     // WebSocketでAdminに通知
-    wss.broadcast('request_denied', { requestId: request.id });
+    adminWebSocket.broadcastToAdmins('request_denied', { requestId: request.id });
     
     // Redis経由でAgentプロセスに通知
     await eventBus.publish('authorization:denied', {

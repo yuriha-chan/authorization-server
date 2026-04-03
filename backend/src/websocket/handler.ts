@@ -2,6 +2,7 @@
 import { WebSocketManager } from './manager';
 import { AppDataSource } from '../db/data-source';
 import { AuthorizationRequest } from '../entities/AuthorizationRequest';
+import { AgentContainer } from '../entities/AgentContainer';
 import { eventBus } from '../events/pubsub';
 
 export class MessageHandler {
