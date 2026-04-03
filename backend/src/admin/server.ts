@@ -7,9 +7,14 @@ import { agentsRouter } from './routes/agents';
 import { grantsRouter } from './routes/grants';
 import { notificationsRouter } from './routes/notifications';
 import { requestsRouter } from './routes/requests';
+import { AppDataSource } from '../db/data-source';
+import fs from 'fs';
+import path from 'path';
 
 const app = express();
 const port = parseInt(process.env.ADMIN_PORT || '8081');
+
+AppDataSource.initialize().catch((err: any) => console.error('DB init failed:', err));
 
 app.use(cors());
 app.use(express.json());
@@ -32,6 +37,11 @@ server.listen(port, '0.0.0.0', () => {
 
 app.get('/api/websocket/stats', (req, res) => {
   res.json(adminWebSocket.getStats());
+});
+
+app.get('/api/openapi.json', (req, res) => {
+  const spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'admin-openapi.json'), 'utf-8'));
+  res.json(spec);
 });
 
 export { adminWebSocket };

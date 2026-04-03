@@ -2,16 +2,8 @@
 import { Router } from 'express';
 import { AppDataSource } from '../../db/data-source';
 import { GrantAPI } from '../../entities/GrantAPI';
+import { grantSchema } from '../../schemas';
 import { z } from 'zod';
-
-const grantSchema = z.object({
-  type: z.string().min(1),
-  baseURL: z.string().url(),
-  secret: z.string().min(1),
-  account: z.string().min(1),
-  name: z.string().min(1),
-  defaultRevokeTime: z.number().optional(),
-});
 
 export const grantsRouter = Router();
 

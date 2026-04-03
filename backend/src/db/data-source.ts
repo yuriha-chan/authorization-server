@@ -10,7 +10,7 @@ import { AuthorizationRequest } from '../entities/AuthorizationRequest';
 export const AppDataSource = new DataSource({
   type: 'sqlite',
   database: process.env.DB_PATH || './data/auth.db',
-  synchronize: true, // 開発時のみ。本番ではマイグレーション推奨
+  synchronize: false,
   logging: process.env.NODE_ENV !== 'production',
   entities: [
     AgentContainer,
@@ -19,4 +19,6 @@ export const AppDataSource = new DataSource({
     Authorization,
     AuthorizationRequest,
   ],
+  migrations: ['dist/db/migrations/*.js'],
+  migrationsTableName: 'migrations',
 });

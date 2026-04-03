@@ -2,16 +2,8 @@
 import { Router } from 'express';
 import { AppDataSource } from '../../db/data-source';
 import { NotificationAPI } from '../../entities/NotificationAPI';
+import { notificationSchema } from '../../schemas';
 import { z } from 'zod';
-
-const notificationSchema = z.object({
-  type: z.string().min(1),
-  baseURL: z.string().url(),
-  secret: z.string().min(1),
-  account: z.string().min(1),
-  name: z.string().min(1),
-  channel: z.string().min(1),
-});
 
 export const notificationsRouter = Router();
 

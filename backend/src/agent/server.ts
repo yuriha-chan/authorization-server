@@ -10,8 +10,13 @@ import { Authorization } from '../entities/Authorization';
 import { AuthorizationRequest } from '../entities/AuthorizationRequest';
 import { eventBus } from '../events/pubsub';
 import { z } from 'zod';
+import { registerSchema, requestSchema } from '../schemas';
+import fs from 'fs';
+import path from 'path';
 
 const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
+AppDataSource.initialize().catch(err => console.error('DB init failed:', err));
 
 async function checkReplayAttack(reqTime: number, fingerprint: string): Promise<boolean> {
   const key = `reqTime:${fingerprint}:${reqTime}`;
@@ -75,12 +80,6 @@ app.get('/api/status', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now(), role: 'agent' });
 });
 
-const registerSchema = z.object({
-  uniqueName: z.string().min(3).max(100),
-  fingerprint: z.string().min(1),
-  publicKey: z.string().min(1),
-});
-
 app.post('/api/register', async (req, res) => {
   try {
     const validated = registerSchema.parse(req.body);
@@ -113,23 +112,11 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-const requestSchema = z.object({
-  codeAccessPublicKey: z.string().min(1),
-  realm: z.object({
-    repository: z.string().min(1),
-    read: z.number().int().min(0).max(1),
-    write: z.number().int().min(0).max(1),
-    baseUrl: z.string().url()
-  }),
-  type: z.string().default('github')
-});
-
 app.post('/api/request-access', verifySignature, async (req, res) => {
   try {
     const validated = requestSchema.parse(req.body);
     const agent = req.agent;
     
-    // Authorizationエンティティ作成
     const authRepo = AppDataSource.getRepository(Authorization);
     const auth = authRepo.create({
       key: validated.codeAccessPublicKey,
@@ -198,6 +185,11 @@ server.listen(port, '0.0.0.0', () => {
 
 app.get('/api/websocket/stats', (req, res) => {
   res.json(agentWebSocket.getStats());
+});
+
+app.get('/api/openapi.json', (req, res) => {
+  const spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'agent-openapi.json'), 'utf-8'));
+  res.json(spec);
 });
 
 export { agentWebSocket };
