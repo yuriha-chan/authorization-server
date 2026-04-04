@@ -57,12 +57,12 @@ requestsRouter.post('/:id/approve', async (req, res) => {
     adminWebSocket.broadcastToTopic('pending_requests', 'request_approved', { requestId: request.id });
     
     // Redis経由でAgentプロセスに通知
-    await eventBus.publish('authorization:granted', {
+    await eventBus.publish('request:approved', {
       requestId: request.id,
       authorizationId: auth.id,
-      containerUniqueName: auth.container.uniqueName,
+      agentUniqueName: auth.container.uniqueName,
       realm: auth.realm,
-      grantedKey: auth.key
+      admin: req.ip
     });
     
     res.json({ message: 'Request approved successfully' });
@@ -77,7 +77,7 @@ requestsRouter.post('/:id/deny', async (req, res) => {
     const requestRepo = AppDataSource.getRepository(AuthorizationRequest);
     const request = await requestRepo.findOne({
       where: { id: req.params.id, state: 'pending' },
-      relations: ['authorization']
+      relations: ['authorization', 'authorization.container']
     });
     
     if (!request) {
@@ -96,8 +96,11 @@ requestsRouter.post('/:id/deny', async (req, res) => {
     adminWebSocket.broadcastToTopic('pending_requests', 'request_denied', { requestId: request.id });
     
     // Redis経由でAgentプロセスに通知
-    await eventBus.publish('authorization:denied', {
-      requestId: request.id
+    await eventBus.publish('request:denied', {
+      requestId: request.id,
+      agentUniqueName: request.authorization?.container?.uniqueName,
+      realm: request.authorization?.realm,
+      admin: req.ip
     });
     
     res.json({ message: 'Request denied successfully' });
