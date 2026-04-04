@@ -9,7 +9,9 @@ export const grantsRouter = Router();
 
 grantsRouter.get('/', async (req, res) => {
   try {
-    const grants = await AppDataSource.getRepository(GrantAPI).find();
+    const grants = await AppDataSource.getRepository(GrantAPI).find({
+      where: { state: 'active' }
+    });
     res.json(grants);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch grants' });

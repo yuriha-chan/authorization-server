@@ -289,6 +289,54 @@ describe('E2E Tests', () => {
       expect(Array.isArray(res.body)).toBe(true);
     });
 
+    it('GET /api/grants returns grants', async () => {
+      const createRes = await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: 'github',
+          baseURL: 'https://api.github.com',
+          secret: 'test-secret',
+          account: 'test-account',
+          name: 'test-grant'
+        })
+        .expect(201);
+
+      expect(createRes.body.id).toBeDefined();
+
+      const res = await request(`http://localhost:${ADMIN_PORT}`)
+        .get('/api/grants')
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
+      expect(res.body.some((g: any) => g.id === createRes.body.id)).toBe(true);
+    });
+
+    it('GET /api/grants excludes deleted grants', async () => {
+      const createRes = await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: 'github',
+          baseURL: 'https://api.github.com',
+          secret: 'test-secret-delete',
+          account: 'test-account-delete',
+          name: 'test-grant-to-delete'
+        })
+        .expect(201);
+
+      const grantId = createRes.body.id;
+
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .delete(`/api/grants/${grantId}`)
+        .expect(200);
+
+      const res = await request(`http://localhost:${ADMIN_PORT}`)
+        .get('/api/grants')
+        .expect(200);
+
+      expect(res.body.some((g: any) => g.id === grantId)).toBe(false);
+    });
+
     it('POST /api/requests/:id/approve approves request', async () => {
       const { publicKey, privateKey } = generateKeyPair();
       const fingerprint = getFingerprint(publicKey);
