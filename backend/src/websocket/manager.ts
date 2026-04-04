@@ -30,7 +30,7 @@ export class WebSocketManager {
     this.clients.set(clientId, ws);
     this.subscriptions.set(clientId, {
       clientId,
-      topics: new Set(),
+      topics: new Set(['broadcast']),
       ws: ws as any
     });
 

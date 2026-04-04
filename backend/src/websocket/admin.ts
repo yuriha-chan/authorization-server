@@ -130,7 +130,7 @@ export class AdminWebSocket {
     // 新しいリクエスト
     eventBus.subscribe('request:new', (data) => {
       console.log('[AdminWebSocket] Received request:new event', data);
-      this.manager.broadcast('pending_requests', {
+      this.manager.broadcast('broadcast', {
         type: 'new_pending_request',
         data: {
           requestId: data.requestId,
@@ -144,7 +144,7 @@ export class AdminWebSocket {
     
     // リクエスト承認
     eventBus.subscribe('request:approved', (data) => {
-      this.manager.broadcast('pending_requests', {
+      this.manager.broadcast('broadcast', {
         type: 'request_approved',
         data: {
           requestId: data.requestId,
@@ -157,7 +157,7 @@ export class AdminWebSocket {
     
     // リクエスト拒否
     eventBus.subscribe('request:denied', (data) => {
-      this.manager.broadcast('pending_requests', {
+      this.manager.broadcast('broadcast', {
         type: 'request_denied',
         data: {
           requestId: data.requestId,
@@ -169,7 +169,7 @@ export class AdminWebSocket {
     
     // Agent更新
     eventBus.subscribe('agent:updated', (data) => {
-      this.manager.broadcast('agents', {
+      this.manager.broadcast('broadcast', {
         type: 'agent_updated',
         data: {
           action: data.action,
@@ -181,7 +181,7 @@ export class AdminWebSocket {
     
     // GrantAPI更新
     eventBus.subscribe('grant:updated', (data) => {
-      this.manager.broadcast('grants', {
+      this.manager.broadcast('broadcast', {
         type: 'grant_api_updated',
         data: {
           action: data.action,
@@ -193,7 +193,7 @@ export class AdminWebSocket {
     
     // NotificationAPI更新
     eventBus.subscribe('notification:updated', (data) => {
-      this.manager.broadcast('notifications', {
+      this.manager.broadcast('broadcast', {
         type: 'notification_api_updated',
         data: {
           action: data.action,
@@ -205,7 +205,7 @@ export class AdminWebSocket {
     
     // 認証取り消し
     eventBus.subscribe('authorization:revoked', (data) => {
-      this.manager.broadcast('authorizations', {
+      this.manager.broadcast('broadcast', {
         type: 'authorization_revoked',
         data: {
           authorizationId: data.authorizationId,
@@ -218,7 +218,7 @@ export class AdminWebSocket {
     
     // 通知配信失敗
     eventBus.subscribe('notification:failed', (data) => {
-      this.manager.broadcast('notifications', {
+      this.manager.broadcast('broadcast', {
         type: 'notification_delivery_failed',
         data: {
           requestId: data.requestId,
