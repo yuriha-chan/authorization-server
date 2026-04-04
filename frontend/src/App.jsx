@@ -660,23 +660,31 @@ const mockEvents = [
   { id: 4, ts: new Date(Date.now() - 600000).toISOString(), type: "register", msg: "Agent registered: data-analyst-9c4e" },
 ];
 
-const EventLog = () => {
-  const evColors = { request: "warn", approved: "brand", revoked: "danger", register: "accent" };
+const EventLog = ({ events = [] }) => {
+  const evColors = { 
+    new_pending_request: "warn", request_approved: "brand", request_denied: "danger", 
+    agent_updated: "accent", grant_api_updated: "brand", notification_api_updated: "accent", 
+    authorization_revoked: "danger", notification_delivery_failed: "error" 
+  };
   const bg = useColorModeValue("gray.50", "surface.900");
   const border = useColorModeValue("gray.200", "surface.600");
   const textColor = useColorModeValue("gray.700", "gray.300");
+
+  const displayEvents = events.length > 0 ? events : mockEvents;
 
   return (
     <Box bg={bg} border="1px solid" borderColor={border} borderRadius="10px" p={4} maxHeight="280px" overflowY="auto">
       <Text fontSize="9px" fontFamily="mono" letterSpacing="0.14em" textTransform="uppercase" color="gray.500" mb={3}>Event Log · Live</Text>
       <VStack gap={2} align="stretch">
-        {mockEvents.map((e) => {
+        {displayEvents.map((e) => {
           const c = evColors[e.type] || "gray";
+          const ts = e.timestamp || e.ts;
+          const msg = e.message || e.msg;
           return (
             <HStack key={e.id} gap={3} align="start">
-              <Text fontSize="9px" fontFamily="mono" color="gray.500" flexShrink={0} pt={0.5}>{timeAgo(e.ts)}</Text>
-              <Box width="6px" height="6px" borderRadius="full" bg={`${c === "brand" ? "brand" : c === "danger" ? "red" : c === "warn" ? "yellow" : "blue"}.400`} mt={1.5} flexShrink={0} />
-              <Text fontSize="11px" fontFamily="mono" color={textColor} lineHeight={1.5}>{e.msg}</Text>
+              <Text fontSize="9px" fontFamily="mono" color="gray.500" flexShrink={0} pt={0.5}>{timeAgo(ts)}</Text>
+              <Box width="6px" height="6px" borderRadius="full" bg={`${c === "brand" ? "brand" : c === "danger" ? "red" : c === "warn" ? "yellow" : c === "error" ? "red" : "blue"}.400`} mt={1.5} flexShrink={0} />
+              <Text fontSize="11px" fontFamily="mono" color={textColor} lineHeight={1.5}>{msg}</Text>
             </HStack>
           );
         })}
@@ -691,6 +699,8 @@ function AppInner() {
   const [grants, setGrants] = useState([]);
   const [notifs, setNotifs] = useState([]);
   const [pending, setPending] = useState([]);
+  const [eventLogs, setEventLogs] = useState([]);
+  const [processedIds, setProcessedIds] = useState(new Set());
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedAgent, setSelectedAgent] = useState(null);
@@ -699,18 +709,21 @@ function AppInner() {
 
   const loadData = async () => {
     try {
-      const [agentsData, grantsData, notifsData, pendingData, statusData] = await Promise.all([
+      const [agentsData, grantsData, notifsData, pendingData, statusData, logsData] = await Promise.all([
         api.getAgents().catch(() => []),
         api.getGrants().catch(() => []),
         api.getNotifications().catch(() => []),
         api.getPendingRequests().catch(() => []),
         api.getStatus().catch(() => ({})),
+        api.getEventLogs().catch(() => []),
       ]);
       setAgents(agentsData);
       setGrants(grantsData);
       setNotifs(notifsData);
       setPending(pendingData);
       setStatus(statusData);
+      setEventLogs(logsData);
+      setProcessedIds(new Set(logsData.map(l => l.id)));
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
@@ -729,6 +742,11 @@ function AppInner() {
       };
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
+        if (msg.data?.id && processedIds.has(msg.data.id)) {
+          return;
+        }
+        const now = new Date().toISOString();
+        setProcessedIds(prev => msg.data?.id ? new Set([...prev, msg.data.id]) : prev);
         switch (msg.type) {
           case 'new_pending_request':
             setPending(prev => [...prev, {
@@ -739,12 +757,30 @@ function AppInner() {
               state: 'pending',
               createdAt: msg.data.timestamp
             }]);
+            setEventLogs(prev => [{
+              id: msg.data.id,
+              timestamp: now,
+              type: msg.type,
+              message: `New auth request from ${msg.data.agentUniqueName} for ${msg.data.realm}`
+            }, ...prev].slice(0, 100));
             break;
           case 'request_approved':
             setPending(prev => prev.filter(r => r.id !== msg.data.requestId));
+            setEventLogs(prev => [{
+              id: msg.data.id,
+              timestamp: now,
+              type: msg.type,
+              message: `Authorization approved: ${msg.data.requestId}`
+            }, ...prev].slice(0, 100));
             break;
           case 'request_denied':
             setPending(prev => prev.filter(r => r.id !== msg.data.requestId));
+            setEventLogs(prev => [{
+              id: msg.data.id,
+              timestamp: now,
+              type: msg.type,
+              message: `Authorization denied: ${msg.data.requestId}`
+            }, ...prev].slice(0, 100));
             break;
           case 'agent_updated':
             if (msg.data.action === 'create' || msg.data.action === 'update') {
@@ -758,6 +794,12 @@ function AppInner() {
             } else if (msg.data.action === 'delete') {
               setAgents(prev => prev.filter(a => a.id !== msg.data.agent.id));
             }
+            setEventLogs(prev => [{
+              id: msg.data.id,
+              timestamp: now,
+              type: msg.type,
+              message: `Agent ${msg.data.action}: ${msg.data.agent?.uniqueName}`
+            }, ...prev].slice(0, 100));
             break;
           case 'grant_api_updated':
             if (msg.data.action === 'create' || msg.data.action === 'update') {
@@ -771,6 +813,12 @@ function AppInner() {
             } else if (msg.data.action === 'delete') {
               setGrants(prev => prev.filter(g => g.id !== msg.data.grantApi.id));
             }
+            setEventLogs(prev => [{
+              id: msg.data.id,
+              timestamp: now,
+              type: msg.type,
+              message: `Grant API ${msg.data.action}: ${msg.data.grantApi?.name}`
+            }, ...prev].slice(0, 100));
             break;
           case 'notification_api_updated':
             if (msg.data.action === 'create' || msg.data.action === 'update') {
@@ -784,10 +832,28 @@ function AppInner() {
             } else if (msg.data.action === 'delete') {
               setNotifs(prev => prev.filter(n => n.id !== msg.data.notificationApi.id));
             }
+            setEventLogs(prev => [{
+              id: msg.data.id,
+              timestamp: now,
+              type: msg.type,
+              message: `Notification API ${msg.data.action}: ${msg.data.notificationApi?.name}`
+            }, ...prev].slice(0, 100));
             break;
           case 'authorization_revoked':
+            setEventLogs(prev => [{
+              id: msg.data.id,
+              timestamp: now,
+              type: msg.type,
+              message: `Authorization revoked: ${msg.data.containerUniqueName}`
+            }, ...prev].slice(0, 100));
             break;
           case 'notification_delivery_failed':
+            setEventLogs(prev => [{
+              id: msg.data.id,
+              timestamp: now,
+              type: msg.type,
+              message: `Notification delivery failed: ${msg.data.channel}`
+            }, ...prev].slice(0, 100));
             break;
         }
       };
@@ -969,7 +1035,7 @@ function AppInner() {
             {panels[nav]}
             {nav === "overview" && (
               <Box mt={8}>
-                <EventLog />
+                <EventLog events={eventLogs} />
               </Box>
             )}
           </Box>

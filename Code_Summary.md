@@ -16,11 +16,12 @@ This is an **Authorization Server** - a dual-component application providing age
 │   │   ├── agent/                  # Agent server module
 │   │   ├── admin/                  # Admin server & REST API routes
 │   │   │   ├── server.ts           # Express server setup
-│   │   │   ├── websocket.ts        # Admin WebSocket handler
-│   │   │   └── routes/              # REST API routes (agents, grants, notifications, requests, authorizations)
+│   │   │   └── routes/              # REST API routes (agents, grants, notifications, requests, authorizations, events)
 │   │   ├── db/                     # TypeORM data source & migrations
 │   │   ├── entities/               # TypeORM entities (Authorization, AuthorizationRequest, AgentContainer, GrantAPI, NotificationAPI)
-│   │   ├── events/                 # Event pub/sub
+│   │   ├── events/                 # Event pub/sub + Redis stream event logger
+│   │   │   │   ├── pubsub.ts       # Redis pub/sub for internal events
+│   │   │   │   └── logger.ts        # Redis stream event notifier with log retention
 │   │   ├── websocket/              # WebSocket handlers (agent, admin, manager)
 │   │   ├── schemas.ts              # Zod validation schemas
 │   │   ├── swagger-admin.ts        # Swagger API docs for admin
@@ -97,8 +98,35 @@ This is an **Authorization Server** - a dual-component application providing age
 1. **Process Model**: The main `index.ts` forks two child processes (`agent/server.js` and `admin/server.js`) with automatic restart on exit
 2. **Database Layer**: TypeORM entities with SQLite backend for persistence
 3. **API Layer**: Express routers for each domain (agents, grants, notifications, requests, authorizations)
-4. **Real-time**: WebSocket connections for admin dashboard live updates
+4. **Real-time**: WebSocket connections for admin dashboard live updates (single broadcast channel)
 5. **Validation**: Zod schemas for request validation
+6. **Event Logging**: Redis stream (`event:log`) with 7-day or 1000 log retention; unified `eventNotifier.notify()` writes to stream and broadcasts to WebSocket
+
+### WebSocket & Data Sync Model
+
+**Message Flow:**
+1. Internal events (e.g., `request:new`, `request:approved`) are published to `eventBus` (Redis pub/sub)
+2. `AdminWebSocket` subscribes to `eventBus` and calls `eventNotifier.notify(type, message, data)`
+3. `eventNotifier.notify()` atomically:
+   - Writes entry to Redis stream (`event:log`)
+   - Triggers broadcast handlers which send to all connected WebSocket clients
+4. Frontend receives message via WebSocket, updates relevant state (pending, agents, grants, etc.)
+5. Frontend maintains `processedIds` Set to discard duplicate messages (idempotent)
+
+**Broadcast Types:**
+- `new_pending_request` - New authorization request
+- `request_approved` - Request approved
+- `request_denied` - Request denied
+- `agent_updated` - Agent created/updated/deleted
+- `grant_api_updated` - Grant API created/updated/deleted
+- `notification_api_updated` - Notification API created/updated/deleted
+- `authorization_revoked` - Authorization revoked
+- `notification_delivery_failed` - Notification delivery failed
+
+**Frontend Idempotency:**
+- On load: Fetch event logs from `GET /api/events` and populate `processedIds` Set
+- On WebSocket message: Check if `msg.data.id` exists in `processedIds`; if yes, discard entire update
+- On valid message: Add `id` to `processedIds` before processing
 
 ### Key Entities
 
@@ -115,6 +143,8 @@ This is an **Authorization Server** - a dual-component application providing age
 - `GET/POST/PUT/DELETE /api/notifications`
 - `GET /api/requests/pending`, `POST /api/requests/:id/approve|deny`
 - `GET/PATCH /api/authorizations`
+- `GET /api/events` - Event logs from Redis stream
+- `GET /api/events/stats` - Event log count
 
 ### Frontend Features
 
@@ -123,7 +153,8 @@ This is an **Authorization Server** - a dual-component application providing age
 - Agent container management
 - Grant API CRUD
 - Notification API management with active/paused toggle
-- Real-time updates via WebSocket
+- Real-time updates via WebSocket (incremental state updates with idempotent message handling)
+- Event log display (live feed from Redis stream)
 - Dark/light theme toggle
 
 ### No CLAUDE.md or Project-Specific Rules

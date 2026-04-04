@@ -8,6 +8,7 @@ import { grantsRouter } from './routes/grants';
 import { notificationsRouter } from './routes/notifications';
 import { requestsRouter } from './routes/requests';
 import { authorizationsRouter } from './routes/authorizations';
+import { eventsRouter } from './routes/events';
 import { AppDataSource } from '../db/data-source';
 import fs from 'fs';
 import path from 'path';
@@ -28,6 +29,7 @@ app.use('/api/grants', grantsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/requests', requestsRouter);
 app.use('/api/authorizations', authorizationsRouter);
+app.use('/api/events', eventsRouter);
 
 // deliver frontend
 app.get('/', (req, res) => {

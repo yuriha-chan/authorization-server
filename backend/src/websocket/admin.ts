@@ -3,6 +3,7 @@ import { Server as HttpServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { WebSocketManager } from './manager';
 import { eventBus } from '../events/pubsub';
+import { eventNotifier } from '../events/logger';
 import { randomUUID } from 'crypto';
 
 export class AdminWebSocket {
@@ -127,105 +128,72 @@ export class AdminWebSocket {
 
   private setupEventListeners(): void {
     console.log('[AdminWebSocket] Setting up event listeners');
-    // 新しいリクエスト
-    eventBus.subscribe('request:new', (data) => {
+
+    eventNotifier.subscribe((entry) => {
+      this.manager.broadcast('broadcast', {
+        type: entry.type,
+        data: entry.data ? { ...entry.data, timestamp: entry.timestamp, id: entry.id } : { timestamp: entry.timestamp, id: entry.id }
+      });
+    });
+
+    eventBus.subscribe('request:new', async (data) => {
       console.log('[AdminWebSocket] Received request:new event', data);
-      this.manager.broadcast('broadcast', {
-        type: 'new_pending_request',
-        data: {
-          requestId: data.requestId,
-          agentUniqueName: data.agentUniqueName,
-          fingerprint: data.fingerprint,
-          realm: data.realm,
-          timestamp: data.timestamp
-        }
+      await eventNotifier.notify('new_pending_request', `New auth request from ${data.agentUniqueName} for ${data.realm}`, {
+        requestId: data.requestId,
+        agentUniqueName: data.agentUniqueName,
+        fingerprint: data.fingerprint,
+        realm: data.realm
       });
     });
     
-    // リクエスト承認
-    eventBus.subscribe('request:approved', (data) => {
-      this.manager.broadcast('broadcast', {
-        type: 'request_approved',
-        data: {
-          requestId: data.requestId,
-          authorizationId: data.authorizationId,
-          approvedBy: data.admin,
-          timestamp: data.timestamp
-        }
+    eventBus.subscribe('request:approved', async (data) => {
+      await eventNotifier.notify('request_approved', `Authorization approved: ${data.agentUniqueName} → ${data.realm}`, {
+        requestId: data.requestId,
+        authorizationId: data.authorizationId,
+        approvedBy: data.admin
       });
     });
     
-    // リクエスト拒否
-    eventBus.subscribe('request:denied', (data) => {
-      this.manager.broadcast('broadcast', {
-        type: 'request_denied',
-        data: {
-          requestId: data.requestId,
-          deniedBy: data.admin,
-          timestamp: data.timestamp
-        }
+    eventBus.subscribe('request:denied', async (data) => {
+      await eventNotifier.notify('request_denied', `Authorization denied: ${data.agentUniqueName} → ${data.realm}`, {
+        requestId: data.requestId,
+        deniedBy: data.admin
       });
     });
     
-    // Agent更新
-    eventBus.subscribe('agent:updated', (data) => {
-      this.manager.broadcast('broadcast', {
-        type: 'agent_updated',
-        data: {
-          action: data.action,
-          agent: data.agent,
-          timestamp: data.timestamp
-        }
+    eventBus.subscribe('agent:updated', async (data) => {
+      await eventNotifier.notify('agent_updated', `Agent ${data.action}: ${data.agent?.uniqueName}`, {
+        action: data.action,
+        agent: data.agent
       });
     });
     
-    // GrantAPI更新
-    eventBus.subscribe('grant:updated', (data) => {
-      this.manager.broadcast('broadcast', {
-        type: 'grant_api_updated',
-        data: {
-          action: data.action,
-          grantApi: data.grantApi,
-          timestamp: data.timestamp
-        }
+    eventBus.subscribe('grant:updated', async (data) => {
+      await eventNotifier.notify('grant_api_updated', `Grant API ${data.action}: ${data.grantApi?.name}`, {
+        action: data.action,
+        grantApi: data.grantApi
       });
     });
     
-    // NotificationAPI更新
-    eventBus.subscribe('notification:updated', (data) => {
-      this.manager.broadcast('broadcast', {
-        type: 'notification_api_updated',
-        data: {
-          action: data.action,
-          notificationApi: data.notificationApi,
-          timestamp: data.timestamp
-        }
+    eventBus.subscribe('notification:updated', async (data) => {
+      await eventNotifier.notify('notification_api_updated', `Notification API ${data.action}: ${data.notificationApi?.name}`, {
+        action: data.action,
+        notificationApi: data.notificationApi
       });
     });
     
-    // 認証取り消し
-    eventBus.subscribe('authorization:revoked', (data) => {
-      this.manager.broadcast('broadcast', {
-        type: 'authorization_revoked',
-        data: {
-          authorizationId: data.authorizationId,
-          containerUniqueName: data.containerUniqueName,
-          revokeTime: data.revokeTime,
-          timestamp: data.timestamp
-        }
+    eventBus.subscribe('authorization:revoked', async (data) => {
+      await eventNotifier.notify('authorization_revoked', `Authorization revoked: ${data.containerUniqueName}`, {
+        authorizationId: data.authorizationId,
+        containerUniqueName: data.containerUniqueName
       });
     });
     
-    // 通知配信失敗
-    eventBus.subscribe('notification:failed', (data) => {
-      this.manager.broadcast('broadcast', {
-        type: 'notification_delivery_failed',
-        data: {
-          requestId: data.requestId,
-          channel: data.channel,
-          error: data.error,
-          timestamp: data.timestamp
-        }
+    eventBus.subscribe('notification:failed', async (data) => {
+      await eventNotifier.notify('notification_delivery_failed', `Notification delivery failed: ${data.channel}`, {
+        requestId: data.requestId,
+        channel: data.channel,
+        error: data.error
       });
     });
   }

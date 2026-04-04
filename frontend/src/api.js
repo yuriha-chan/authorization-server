@@ -37,4 +37,6 @@ export const api = {
   updateAuthorization: (id, data) => fetchAPI(`/authorizations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   approveAuthRequest: (id, revokeTime) => fetchAPI(`/authorizations/${id}/approve`, { method: 'POST', body: JSON.stringify({ revokeTime }) }),
   denyAuthRequest: (id) => fetchAPI(`/authorizations/${id}/deny`, { method: 'POST' }),
+
+  getEventLogs: (limit = 100) => fetchAPI(`/events?limit=${limit}`),
 };
