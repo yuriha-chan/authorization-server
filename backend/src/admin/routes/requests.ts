@@ -53,8 +53,8 @@ requestsRouter.post('/:id/approve', async (req, res) => {
       await manager.save(auth);
     });
     
-    // WebSocketでAdminに通知
-    adminWebSocket.broadcastToAdmins('request_approved', { requestId: request.id });
+    // WebSocketでAdminに通知 (topic based)
+    adminWebSocket.broadcastToTopic('pending_requests', 'request_approved', { requestId: request.id });
     
     // Redis経由でAgentプロセスに通知
     await eventBus.publish('authorization:granted', {
@@ -92,8 +92,8 @@ requestsRouter.post('/:id/deny', async (req, res) => {
     
     await requestRepo.save(request);
     
-    // WebSocketでAdminに通知
-    adminWebSocket.broadcastToAdmins('request_denied', { requestId: request.id });
+    // WebSocketでAdminに通知 (topic based)
+    adminWebSocket.broadcastToTopic('pending_requests', 'request_denied', { requestId: request.id });
     
     // Redis経由でAgentプロセスに通知
     await eventBus.publish('authorization:denied', {

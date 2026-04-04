@@ -14,7 +14,6 @@ export class AdminWebSocket {
       server, 
       path: '/api/admin/ws',
       verifyClient: (info, cb) => {
-        // ここで認証チェック（セッションまたはAPIキー）
         const apiKey = info.req.headers['x-api-key'];
         const validApiKey = process.env.ADMIN_API_KEY;
         
@@ -24,6 +23,10 @@ export class AdminWebSocket {
         }
         cb(true);
       }
+    });
+
+    this.wss.on('error', (err) => {
+      console.error('WebSocketServer error:', err.message);
     });
     
     this.manager = new WebSocketManager();
@@ -39,6 +42,10 @@ export class AdminWebSocket {
       console.log(`Admin client connected: ${clientId} from ${clientIp}`);
       
       this.manager.registerClient(clientId, ws);
+      
+      ws.on('error', (err) => {
+        console.error(`WebSocket client error: ${err.message}`);
+      });
       
       // 接続確認メッセージ
       this.manager.sendToClient(clientId, {
@@ -118,8 +125,10 @@ export class AdminWebSocket {
   }
 
   private setupEventListeners(): void {
+    console.log('[AdminWebSocket] Setting up event listeners');
     // 新しいリクエスト
     eventBus.subscribe('request:new', (data) => {
+      console.log('[AdminWebSocket] Received request:new event', data);
       this.manager.broadcast('pending_requests', {
         type: 'new_pending_request',
         data: {
@@ -222,6 +231,13 @@ export class AdminWebSocket {
 
   broadcastToAdmins(type: string, data: any): void {
     this.manager.broadcast('admin_all', {
+      type,
+      data
+    });
+  }
+
+  broadcastToTopic(topic: string, type: string, data: any): void {
+    this.manager.sendToTopic(topic, {
       type,
       data
     });

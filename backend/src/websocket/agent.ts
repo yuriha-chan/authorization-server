@@ -31,7 +31,7 @@ export class AgentWebSocket {
   private wss: WebSocketServer;
   private manager: WebSocketManager;
   private agentSessions: Map<string, AgentSession> = new Map(); // clientId -> session
-  private agentByFingerprint: Map<string, string> = new Map(); // fingerprint -> clientId
+  private agentByFingerprint: Map<string, Set<string>> = new Map(); // fingerprint -> clientIds
 
   constructor(server: HttpServer) {
     this.wss = new WebSocketServer({ 
@@ -143,7 +143,13 @@ export class AgentWebSocket {
       };
       
       this.agentSessions.set(clientId, session);
-      this.agentByFingerprint.set(fingerprint, clientId);
+      
+      let clientIds = this.agentByFingerprint.get(fingerprint);
+      if (!clientIds) {
+        clientIds = new Set();
+        this.agentByFingerprint.set(fingerprint, clientIds);
+      }
+      clientIds.add(clientId);
       
       ws.send(JSON.stringify({
         type: 'handshake_ack',
@@ -198,7 +204,13 @@ export class AgentWebSocket {
   private handleDisconnect(clientId: string): void {
     const session = this.agentSessions.get(clientId);
     if (session) {
-      this.agentByFingerprint.delete(session.fingerprint);
+      const clientIds = this.agentByFingerprint.get(session.fingerprint);
+      if (clientIds) {
+        clientIds.delete(clientId);
+        if (clientIds.size === 0) {
+          this.agentByFingerprint.delete(session.fingerprint);
+        }
+      }
       this.agentSessions.delete(clientId);
       console.log(`Agent disconnected: ${session.fingerprint}`);
     }
@@ -233,20 +245,24 @@ export class AgentWebSocket {
   }
 
   sendToAgent(fingerprint: string, type: string, data: any): boolean {
-    const clientId = this.agentByFingerprint.get(fingerprint);
-    if (clientId) {
-      return this.manager.sendToClient(clientId, {
-        type,
-        data,
-        timestamp: Date.now(),
-        messageId: randomUUID()
-      });
+    const clientIds = this.agentByFingerprint.get(fingerprint);
+    if (clientIds && clientIds.size > 0) {
+      for (const clientId of clientIds) {
+        this.manager.sendToClient(clientId, {
+          type,
+          data,
+          timestamp: Date.now(),
+          messageId: randomUUID()
+        });
+      }
+      return true;
     }
     return false;
   }
 
   isAgentConnected(fingerprint: string): boolean {
-    return this.agentByFingerprint.has(fingerprint);
+    const clientIds = this.agentByFingerprint.get(fingerprint);
+    return !!clientIds && clientIds.size > 0;
   }
 
   getConnectedAgents(): string[] {

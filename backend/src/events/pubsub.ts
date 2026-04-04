@@ -10,7 +10,6 @@ class EventBus {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
     this.publisher = new Redis(redisUrl);
     this.subscriber = new Redis(redisUrl);
-    
     this.setupSubscriber();
   }
 

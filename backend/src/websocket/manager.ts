@@ -52,7 +52,7 @@ export class WebSocketManager {
 
   private disconnectClient(clientId: string): void {
     const ws = this.clients.get(clientId);
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    if (ws && ws.readyState === 1) {
       ws.close();
     }
     this.clients.delete(clientId);
@@ -106,7 +106,7 @@ export class WebSocketManager {
 
   sendToClient(clientId: string, message: WebSocketMessage): boolean {
     const ws = this.clients.get(clientId);
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    if (ws && ws.readyState === 1) {
       try {
         ws.send(JSON.stringify(message));
         return true;
