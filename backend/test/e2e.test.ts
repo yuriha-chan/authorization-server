@@ -8,6 +8,7 @@ import crypto from 'crypto';
 const PROJECT_ROOT = path.join(__dirname, '..');
 const AGENT_PORT = 9080;
 const ADMIN_PORT = 9081;
+const ADMIN_API_KEY = 'test-admin-api-key';
 
 let serverProcess: ChildProcess | undefined;
 
@@ -52,6 +53,10 @@ function generateKeyPair() {
   return { publicKey, privateKey };
 }
 
+function getFingerprint(publicKey: string): string {
+  return crypto.createHash('sha256').update(publicKey).digest('hex');
+}
+
 function signData(privateKey: string, data: string): string {
   const sign = crypto.createSign('SHA256');
   sign.update(data);
@@ -63,6 +68,7 @@ describe('E2E Tests', () => {
   beforeAll(async () => {
     process.env.AGENT_PORT = String(AGENT_PORT);
     process.env.ADMIN_PORT = String(ADMIN_PORT);
+    process.env.ADMIN_API_KEY = ADMIN_API_KEY;
     process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
     process.env.DB_PATH = path.join(PROJECT_ROOT, 'data/auth.db');
     
@@ -114,12 +120,14 @@ describe('E2E Tests', () => {
     });
 
     it('POST /api/register creates new agent', async () => {
+      const { publicKey, privateKey } = generateKeyPair();
+      const fingerprint = getFingerprint(publicKey);
+      
       const res = await request(`http://localhost:${AGENT_PORT}`)
         .post('/api/register')
         .send({
           uniqueName: `test-agent-${Date.now()}`,
-          publicKey: 'test-public-key',
-          fingerprint: `fp-${Date.now()}`
+          publicKey
         })
         .expect(201);
 
@@ -129,13 +137,14 @@ describe('E2E Tests', () => {
 
     it('POST /api/register fails with duplicate name', async () => {
       const name = `duplicate-agent-${Date.now()}`;
+      const { publicKey: pk1 } = generateKeyPair();
+      const { publicKey: pk2 } = generateKeyPair();
       
       await request(`http://localhost:${AGENT_PORT}`)
         .post('/api/register')
         .send({
           uniqueName: name,
-          publicKey: 'test-key-1',
-          fingerprint: `fp1-${Date.now()}`
+          publicKey: pk1
         })
         .expect(201);
 
@@ -143,8 +152,7 @@ describe('E2E Tests', () => {
         .post('/api/register')
         .send({
           uniqueName: name,
-          publicKey: 'test-key-2',
-          fingerprint: `fp2-${Date.now()}`
+          publicKey: pk2
         })
         .expect(409);
     });
@@ -163,12 +171,12 @@ describe('E2E Tests', () => {
     it('can register multiple agents', async () => {
       const agents: any[] = [];
       for (let i = 0; i < 3; i++) {
+        const { publicKey } = generateKeyPair();
         const res = await request(`http://localhost:${AGENT_PORT}`)
           .post('/api/register')
           .send({
             uniqueName: `multi-agent-${i}-${Date.now()}`,
-            publicKey: `public-key-${i}`,
-            fingerprint: `fp-multi-${i}-${Date.now()}`
+            publicKey
           })
           .expect(201);
         agents.push(res.body);
@@ -227,7 +235,7 @@ describe('E2E Tests', () => {
 
     it('POST /api/request-access with valid signature returns 202', async () => {
       const { publicKey, privateKey } = generateKeyPair();
-      const fingerprint = `fp-req-${Date.now()}`;
+      const fingerprint = getFingerprint(publicKey);
       const timestamp = Date.now();
       const body = {
         codeAccessPublicKey: 'test-code-key',
@@ -246,8 +254,7 @@ describe('E2E Tests', () => {
         .post('/api/register')
         .send({
           uniqueName: `req-agent-${Date.now()}`,
-          publicKey,
-          fingerprint
+          publicKey
         })
         .expect(201);
 
@@ -284,7 +291,7 @@ describe('E2E Tests', () => {
 
     it('POST /api/requests/:id/approve approves request', async () => {
       const { publicKey, privateKey } = generateKeyPair();
-      const fingerprint = `fp-approve-${Date.now()}`;
+      const fingerprint = getFingerprint(publicKey);
       const timestamp = Date.now();
       const body = {
         codeAccessPublicKey: 'approve-key',
@@ -303,8 +310,7 @@ describe('E2E Tests', () => {
         .post('/api/register')
         .send({
           uniqueName: `approve-agent-${Date.now()}`,
-          publicKey,
-          fingerprint
+          publicKey
         })
         .expect(201);
 
@@ -328,7 +334,7 @@ describe('E2E Tests', () => {
 
     it('POST /api/requests/:id/deny denies request', async () => {
       const { publicKey, privateKey } = generateKeyPair();
-      const fingerprint = `fp-deny-${Date.now()}`;
+      const fingerprint = getFingerprint(publicKey);
       const timestamp = Date.now();
       const body = {
         codeAccessPublicKey: 'deny-key',
@@ -347,8 +353,7 @@ describe('E2E Tests', () => {
         .post('/api/register')
         .send({
           uniqueName: `deny-agent-${Date.now()}`,
-          publicKey,
-          fingerprint
+          publicKey
         })
         .expect(201);
 
@@ -382,7 +387,9 @@ describe('E2E Tests', () => {
   describe('WebSocket', () => {
     it('WebSocket server is running on admin port', async () => {
       const WebSocket = require('ws');
-      const ws = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`);
+      const ws = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
+        headers: { 'Authorization': `Bearer ${ADMIN_API_KEY}` }
+      });
       
       await new Promise((resolve, reject) => {
         ws.on('open', resolve);
@@ -394,9 +401,28 @@ describe('E2E Tests', () => {
       ws.close();
     });
 
+    it('WebSocket rejects invalid Bearer token', async () => {
+      const WebSocket = require('ws');
+      const ws = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
+        headers: { 'Authorization': 'Bearer invalid-key' }
+      });
+      
+      await new Promise((resolve, reject) => {
+        ws.on('open', resolve);
+        ws.on('error', reject);
+        setTimeout(() => reject(new Error('Timeout')), 5000);
+      });
+
+      await new Promise((resolve) => ws.on('close', resolve));
+      expect(ws.readyState).toBe(WebSocket.CLOSED);
+      expect(ws.closeCode).toBe(401);
+    });
+
     it('admin receives request_approved notification via WebSocket', async () => {
       const WebSocket = require('ws');
-      const ws = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`);
+      const ws = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
+        headers: { 'Authorization': `Bearer ${ADMIN_API_KEY}` }
+      });
       
       const handshake =  new Promise<void>((resolve) => {
         ws.on('message', (data: any) => {
@@ -417,7 +443,7 @@ describe('E2E Tests', () => {
       ws.send(JSON.stringify({ type: 'subscribe_requests' }));
 
       const { publicKey, privateKey } = generateKeyPair();
-      const fingerprint = `fp-ws-test-${Date.now()}`;
+      const fingerprint = getFingerprint(publicKey);
       const agentName = `ws-test-${Date.now()}`;
       const timestamp = Date.now();
       const body = {
@@ -430,7 +456,7 @@ describe('E2E Tests', () => {
 
       await request(`http://localhost:${AGENT_PORT}`)
         .post('/api/register')
-        .send({ uniqueName: agentName, publicKey, fingerprint })
+        .send({ uniqueName: agentName, publicKey })
         .expect(201);
 
       const requestRes = await request(`http://localhost:${AGENT_PORT}`)
@@ -471,8 +497,12 @@ describe('E2E Tests', () => {
     it('multiple admin clients receive independent messages', async () => {
       const WebSocket = require('ws');
       
-      const ws1 = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`);
-      const ws2 = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`);
+      const ws1 = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
+        headers: { 'Authorization': `Bearer ${ADMIN_API_KEY}` }
+      });
+      const ws2 = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
+        headers: { 'Authorization': `Bearer ${ADMIN_API_KEY}` }
+      });
 
       const handshake = Promise.all([
         new Promise((resolve) => ws1.on('message', (data: any) => {
@@ -496,7 +526,7 @@ describe('E2E Tests', () => {
       ws2.send(JSON.stringify({ type: 'subscribe_requests' }));
 
       const { publicKey, privateKey } = generateKeyPair();
-      const fingerprint = `fp-multi-ws-${Date.now()}`;
+      const fingerprint = getFingerprint(publicKey);
       const agentName = `multi-ws-${Date.now()}`;
       const timestamp = Date.now();
       const body = {
@@ -509,7 +539,7 @@ describe('E2E Tests', () => {
 
       await request(`http://localhost:${AGENT_PORT}`)
         .post('/api/register')
-        .send({ uniqueName: agentName, publicKey, fingerprint })
+        .send({ uniqueName: agentName, publicKey })
         .expect(201);
 
       const requestRes = await request(`http://localhost:${AGENT_PORT}`)
@@ -564,7 +594,9 @@ describe('E2E Tests', () => {
 
     it('admin receives request_denied notification via WebSocket', async () => {
       const WebSocket = require('ws');
-      const ws = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`);
+      const ws = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
+        headers: { 'Authorization': `Bearer ${ADMIN_API_KEY}` }
+      });
 
       const handshake = new Promise<void>((resolve) => {
         ws.on('message', (data: any) => {
@@ -584,7 +616,7 @@ describe('E2E Tests', () => {
       ws.send(JSON.stringify({ type: 'subscribe_requests' }));
 
       const { publicKey, privateKey } = generateKeyPair();
-      const fingerprint = `fp-ws-deny-${Date.now()}`;
+      const fingerprint = getFingerprint(publicKey);
       const agentName = `ws-deny-${Date.now()}`;
       const timestamp = Date.now();
       const body = {
@@ -597,7 +629,7 @@ describe('E2E Tests', () => {
 
       await request(`http://localhost:${AGENT_PORT}`)
         .post('/api/register')
-        .send({ uniqueName: agentName, publicKey, fingerprint })
+        .send({ uniqueName: agentName, publicKey })
         .expect(201);
 
       const requestRes = await request(`http://localhost:${AGENT_PORT}`)
@@ -638,15 +670,15 @@ describe('E2E Tests', () => {
 
   describe('Full Flow', () => {
     it('registers agent and retrieves it via admin', async () => {
+      const { publicKey, privateKey } = generateKeyPair();
       const agentName = `flow-agent-${Date.now()}`;
-      const fingerprint = `fp-flow-${Date.now()}`;
+      const fingerprint = getFingerprint(publicKey);
 
       const registerRes = await request(`http://localhost:${AGENT_PORT}`)
         .post('/api/register')
         .send({
           uniqueName: agentName,
-          publicKey: 'test-public-key-flow',
-          fingerprint
+          publicKey
         })
         .expect(201);
 
@@ -663,7 +695,7 @@ describe('E2E Tests', () => {
 
     it('full flow: register agent -> request access -> approve -> verify', async () => {
       const { publicKey, privateKey } = generateKeyPair();
-      const fingerprint = `fp-full-${Date.now()}`;
+      const fingerprint = getFingerprint(publicKey);
       const agentName = `full-flow-${Date.now()}`;
       const timestamp = Date.now();
       const body = {
@@ -683,8 +715,7 @@ describe('E2E Tests', () => {
         .post('/api/register')
         .send({
           uniqueName: agentName,
-          publicKey,
-          fingerprint
+          publicKey
         })
         .expect(201);
 

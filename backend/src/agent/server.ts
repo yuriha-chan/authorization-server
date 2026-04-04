@@ -90,8 +90,12 @@ app.post('/api/register', async (req, res) => {
       return res.status(409).json({ error: 'Agent name already exists' });
     }
     
+    const fingerprint = crypto.createHash('sha256').update(validated.publicKey).digest('hex');
+    
     const agent = repo.create({
-      ...validated,
+      uniqueName: validated.uniqueName,
+      fingerprint,
+      publicKey: validated.publicKey,
       state: 'active'
     });
     
@@ -179,8 +183,8 @@ const server = new HttpServer(app);
 
 server.on('error', (err: any) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`Port ${port} is already in use, retrying in 1s...`);
-    setTimeout(() => server.listen(port, '0.0.0.0'), 1000);
+    console.error(`Port ${port} is already in use, retrying in 3s...`);
+    setTimeout(() => server.listen(port, '0.0.0.0'), 3000);
   } else {
     console.error('Server error:', err);
   }

@@ -76,9 +76,6 @@ async function main() {
   });
   
   console.log('Authorization Server started');
-  console.log('  Agent API: port 8080');
-  console.log('  Admin API: port 8081');
-  console.log('  Admin WebSocket: /api/admin/ws');
 }
 
 main().catch(console.error);

@@ -14,7 +14,8 @@ export class AdminWebSocket {
       server, 
       path: '/api/admin/ws',
       verifyClient: (info, cb) => {
-        const apiKey = info.req.headers['x-api-key'];
+        const authHeader = info.req.headers['authorization'] || '';
+        const apiKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
         const validApiKey = process.env.ADMIN_API_KEY;
         
         if (validApiKey && apiKey !== validApiKey) {

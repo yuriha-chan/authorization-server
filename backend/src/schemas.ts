@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 export const registerSchema = z.object({
   uniqueName: z.string().min(3).max(100),
-  fingerprint: z.string().min(1),
   publicKey: z.string().min(1),
 });
 
