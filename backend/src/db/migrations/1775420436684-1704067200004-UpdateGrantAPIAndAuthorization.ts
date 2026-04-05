@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class 1704067200004UpdateGrantAPIAndAuthorization1775420436684 implements MigrationInterface {
-    name = '1704067200004UpdateGrantAPIAndAuthorization1775420436684'
+export class UpdateGrantAPIAndAuthorization1704067200004 implements MigrationInterface {
+    name = 'UpdateGrantAPIAndAuthorization1704067200004'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`CREATE TABLE "temporary_grant_apis" ("id" varchar PRIMARY KEY NOT NULL, "type" varchar NOT NULL, "baseURL" varchar NOT NULL, "secret" varchar NOT NULL, "account" varchar NOT NULL, "name" varchar NOT NULL, "defaultRevokeTime" integer NOT NULL DEFAULT (86400000), "state" varchar NOT NULL DEFAULT ('active'), "createdAt" datetime NOT NULL DEFAULT (CURRENT_TIMESTAMP), "updatedAt" datetime NOT NULL DEFAULT (CURRENT_TIMESTAMP))`);

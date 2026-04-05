@@ -90,10 +90,10 @@
 - **REFACTOR**: Review display logic
 
 ## Current Status
-- [ ] Phase 1: Database Schema (Foundation)
-- [ ] Phase 2: Validation Schemas (Contracts)
-- [ ] Phase 3: Agent Server (New Endpoint + Modified Handler)
-- [ ] Phase 4: Admin Routes (Grants + Requests)
+- [x] Phase 1: Database Schema (Foundation)
+- [x] Phase 2: Validation Schemas (Contracts)
+- [x] Phase 3: Agent Server (New Endpoint + Modified Handler)
+- [x] Phase 4: Admin Routes (Grants + Requests)
 - [ ] Phase 5: Agent Client Script
 - [ ] Phase 6: Tests
 - [ ] Phase 7: Frontend Types and Display
