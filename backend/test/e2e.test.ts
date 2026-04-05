@@ -197,6 +197,20 @@ describe('E2E Tests', () => {
 
   describe('Request Access Flow', () => {
     it('POST /api/request-access accepts new format with realm object containing repository, read, and write', async () => {
+      // First, create a GrantAPI that we'll reference
+      const grantApiName = `test-grant-new-format-${Date.now()}`;
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: 'github',
+          baseURL: 'https://api.github.com',
+          secret: 'test-secret',
+          account: 'test-account',
+          name: grantApiName,
+          description: 'Test grant for new format'
+        })
+        .expect(201);
+
       const { publicKey, privateKey } = generateKeyPair();
       const fingerprint = getFingerprint(publicKey);
       const timestamp = Date.now();
@@ -207,7 +221,7 @@ describe('E2E Tests', () => {
           read: 1,
           write: 0
         },
-        grantApi: 'test-grant-new-format'
+        grantApi: grantApiName
       };
       const bodyString = JSON.stringify(body);
       const signature = signData(privateKey, `${timestamp}${bodyString}`);
