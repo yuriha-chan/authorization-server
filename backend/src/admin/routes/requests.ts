@@ -36,12 +36,13 @@ requestsRouter.post('/:id/approve', async (req, res) => {
     }
     
     const auth = request.authorization;
-    
+    const grantApiTypeName = auth.grantApi?.type?.name;
+
     // Find grant for this authorization type
-    const grant = await findGrantForType(auth.type);
+    const grant = await findGrantForType(grantApiTypeName);
     if (!grant) {
-      return res.status(400).json({ 
-        error: `No active Grant API found for type '${auth.type}'. Please configure a grant with valid secrets.` 
+      return res.status(400).json({
+        error: `No active Grant API found for type '${grantApiTypeName}'. Please configure a grant with valid secrets.`
       });
     }
     
@@ -56,7 +57,7 @@ requestsRouter.post('/:id/approve', async (req, res) => {
     let grantResult;
     try {
       grantResult = await executeGrantCode(
-        auth.type,
+        grantApiTypeName,
         secrets,
         grant.account,
         auth.realm

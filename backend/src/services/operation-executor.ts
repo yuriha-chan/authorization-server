@@ -23,7 +23,7 @@ export async function executeGrantCode(
   typeName: string,
   secrets: Record<string, any>,
   account: string,
-  realm: { repository: string; read: number; write: number; baseUrl: string }
+  realm: { repository: string; read: number; write: number }
 ): Promise<GrantResult> {
   const typeRepo = AppDataSource.getRepository(GrantApiType);
   const grantType = await typeRepo.findOneBy({ name: typeName });

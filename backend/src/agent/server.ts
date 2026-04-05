@@ -8,6 +8,7 @@ import { AppDataSource } from '../db/data-source';
 import { AgentContainer } from '../entities/AgentContainer';
 import { Authorization } from '../entities/Authorization';
 import { AuthorizationRequest } from '../entities/AuthorizationRequest';
+import { GrantAPI } from '../entities/GrantAPI';
 import { eventBus } from '../events/pubsub';
 import { z } from 'zod';
 import { registerSchema, requestSchema } from '../schemas';
@@ -128,7 +129,16 @@ app.post('/api/request-access', verifySignature, async (req, res) => {
   try {
     const validated = requestSchema.parse(req.body);
     const agent = req.agent;
-    
+
+    // Look up GrantAPI by name
+    const grantApi = await AppDataSource.getRepository(GrantAPI).findOne({
+      where: { name: validated.grantApi, state: 'active' },
+      relations: ['type']
+    });
+    if (!grantApi) {
+      return res.status(400).json({ error: `Grant API '${validated.grantApi}' not found or inactive` });
+    }
+
     // Use transaction to ensure both are created atomically
     const { auth, request } = await AppDataSource.transaction(async (manager) => {
       const authRepo = manager.getRepository(Authorization);
@@ -136,8 +146,8 @@ app.post('/api/request-access', verifySignature, async (req, res) => {
 
       // Create and save authorization first
       const auth = authRepo.create({
-        key: validated.codeAccessPublicKey,
-        type: validated.type,
+        key: validated.serviceAccessKey,
+        grantApi: grantApi,
         realm: validated.realm,
         state: 'pending',
         container: agent
@@ -155,7 +165,7 @@ app.post('/api/request-access', verifySignature, async (req, res) => {
 
       return { auth, request };
     });
-    
+
     // Redis経由でAdminに通知
     await eventBus.publish('request:new', {
       requestId: request.id,
@@ -163,7 +173,7 @@ app.post('/api/request-access', verifySignature, async (req, res) => {
       fingerprint: agent!.fingerprint,
       realm: validated.realm,
       timestamp: Date.now(),
-      type: validated.type,
+      grantApiName: validated.grantApi,
       containerId: agent!.id
     });
     

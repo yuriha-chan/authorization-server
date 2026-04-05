@@ -6,13 +6,13 @@ export const registerSchema = z.object({
 });
 
 export const requestSchema = z.object({
-  serviceAccessKey: z.string().min(1),
+  serviceAccessKey: z.string().min(1).max(1000),
   realm: z.object({
-    repository: z.string().min(1),
+    repository: z.string().min(1).max(500),
     read: z.number().int().min(0).max(1),
     write: z.number().int().min(0).max(1),
   }).strict(),
-  grantApi: z.string().min(1)
+  grantApi: z.string().min(1).max(100)
 }).strict();
 
 export const grantSchema = z.object({

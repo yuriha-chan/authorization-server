@@ -200,14 +200,13 @@ describe('E2E Tests', () => {
       const res = await request(`http://localhost:${AGENT_PORT}`)
         .post('/api/request-access')
         .send({
-          codeAccessPublicKey: 'test-code-key',
+          serviceAccessKey: 'test-code-key',
           realm: {
             repository: 'test/repo',
             read: 1,
-            write: 0,
-            baseUrl: 'https://api.github.com'
+            write: 0
           },
-          type: 'github'
+          grantApi: 'test-grant-request-access'
         })
         .expect(401);
 
@@ -221,31 +220,51 @@ describe('E2E Tests', () => {
         .set('x-timestamp', String(Date.now()))
         .set('x-fingerprint', `fp-${Date.now()}`)
         .send({
-          codeAccessPublicKey: 'test-code-key',
+          serviceAccessKey: 'test-code-key',
           realm: {
             repository: 'test/repo',
             read: 1,
-            write: 0,
-            baseUrl: 'https://api.github.com'
+            write: 0
           },
-          type: 'github'
+          grantApi: 'test-grant-request-access'
         })
         .expect(401);
     });
 
     it('POST /api/request-access with valid signature returns 202', async () => {
+      // Create grant type and grant first
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grant-types')
+        .send({
+          name: 'github',
+          grantCode: 'async function grant() { return { token: "test" }; }',
+          revokeCode: 'async function revoke() { return { revoked: true }; }',
+          getStatusCode: 'async function getStatus() { return { active: true }; }'
+        })
+        .catch(() => { /* grant type may already exist */ });
+
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: 'github',
+          baseURL: 'https://api.github.com',
+          secret: 'test-secret',
+          account: 'test-account',
+          name: 'test-grant-request-access'
+        })
+        .catch(() => { /* grant may already exist */ });
+
       const { publicKey, privateKey } = generateKeyPair();
       const fingerprint = getFingerprint(publicKey);
       const timestamp = Date.now();
       const body = {
-        codeAccessPublicKey: 'test-code-key',
+        serviceAccessKey: 'test-code-key',
         realm: {
           repository: 'test/repo',
           read: 1,
-          write: 0,
-          baseUrl: 'https://api.github.com'
+          write: 0
         },
-        type: 'github'
+        grantApi: 'test-grant-request-access'
       };
       const bodyString = JSON.stringify(body);
       const signature = signData(privateKey, `${timestamp}${bodyString}`);
@@ -338,18 +357,40 @@ describe('E2E Tests', () => {
     });
 
     it('POST /api/requests/:id/approve approves request', async () => {
+      // Create grant type and grant first
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grant-types')
+        .send({
+          name: 'github',
+          grantCode: 'async function grant() { return { token: "test" }; }',
+          revokeCode: 'async function revoke() { return { revoked: true }; }',
+          getStatusCode: 'async function getStatus() { return { active: true }; }'
+        })
+        .catch(() => { /* grant type may already exist */ });
+
+      const grantRes = await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: 'github',
+          baseURL: 'https://api.github.com',
+          secret: 'test-secret',
+          account: 'test-account',
+          name: `approve-grant-${Date.now()}`
+        })
+        .expect(201);
+      const grantName = grantRes.body.name;
+
       const { publicKey, privateKey } = generateKeyPair();
       const fingerprint = getFingerprint(publicKey);
       const timestamp = Date.now();
       const body = {
-        codeAccessPublicKey: 'approve-key',
+        serviceAccessKey: 'approve-key',
         realm: {
           repository: 'approve/repo',
           read: 1,
-          write: 0,
-          baseUrl: 'https://api.github.com'
+          write: 0
         },
-        type: 'github'
+        grantApi: grantName
       };
       const bodyString = JSON.stringify(body);
       const signature = signData(privateKey, `${timestamp}${bodyString}`);
@@ -381,18 +422,40 @@ describe('E2E Tests', () => {
     });
 
     it('POST /api/requests/:id/deny denies request', async () => {
+      // Create grant type and grant first
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grant-types')
+        .send({
+          name: 'github',
+          grantCode: 'async function grant() { return { token: "test" }; }',
+          revokeCode: 'async function revoke() { return { revoked: true }; }',
+          getStatusCode: 'async function getStatus() { return { active: true }; }'
+        })
+        .catch(() => { /* grant type may already exist */ });
+
+      const grantRes = await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: 'github',
+          baseURL: 'https://api.github.com',
+          secret: 'test-secret',
+          account: 'test-account',
+          name: `deny-grant-${Date.now()}`
+        })
+        .expect(201);
+      const grantName = grantRes.body.name;
+
       const { publicKey, privateKey } = generateKeyPair();
       const fingerprint = getFingerprint(publicKey);
       const timestamp = Date.now();
       const body = {
-        codeAccessPublicKey: 'deny-key',
+        serviceAccessKey: 'deny-key',
         realm: {
           repository: 'deny/repo',
           read: 1,
-          write: 0,
-          baseUrl: 'https://api.github.com'
+          write: 0
         },
-        type: 'github'
+        grantApi: grantName
       };
       const bodyString = JSON.stringify(body);
       const signature = signData(privateKey, `${timestamp}${bodyString}`);
@@ -496,14 +559,37 @@ describe('E2E Tests', () => {
 
       ws.send(JSON.stringify({ type: 'subscribe_requests' }));
 
+      // Create grant type and grant first
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grant-types')
+        .send({
+          name: 'github',
+          grantCode: 'async function grant() { return { token: "test" }; }',
+          revokeCode: 'async function revoke() { return { revoked: true }; }',
+          getStatusCode: 'async function getStatus() { return { active: true }; }'
+        })
+        .catch(() => { /* grant type may already exist */ });
+
+      const grantRes = await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: 'github',
+          baseURL: 'https://api.github.com',
+          secret: 'test-secret',
+          account: 'test-account',
+          name: `ws-grant-${Date.now()}`
+        })
+        .expect(201);
+      const grantName = grantRes.body.name;
+
       const { publicKey, privateKey } = generateKeyPair();
       const fingerprint = getFingerprint(publicKey);
       const agentName = `ws-test-${Date.now()}`;
       const timestamp = Date.now();
       const body = {
-        codeAccessPublicKey: 'code-access-key-ws',
-        realm: { repository: 'test/ws-repo', read: 1, write: 0, baseUrl: 'https://api.github.com' },
-        type: 'github'
+        serviceAccessKey: 'code-access-key-ws',
+        realm: { repository: 'test/ws-repo', read: 1, write: 0 },
+        grantApi: grantName
       };
       const bodyString = JSON.stringify(body);
       const signature = signData(privateKey, `${timestamp}${bodyString}`);
@@ -579,14 +665,37 @@ describe('E2E Tests', () => {
       ws1.send(JSON.stringify({ type: 'subscribe_requests' }));
       ws2.send(JSON.stringify({ type: 'subscribe_requests' }));
 
+      // Create grant type and grant first
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grant-types')
+        .send({
+          name: 'github',
+          grantCode: 'async function grant() { return { token: "test" }; }',
+          revokeCode: 'async function revoke() { return { revoked: true }; }',
+          getStatusCode: 'async function getStatus() { return { active: true }; }'
+        })
+        .catch(() => { /* grant type may already exist */ });
+
+      const grantRes = await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: 'github',
+          baseURL: 'https://api.github.com',
+          secret: 'test-secret',
+          account: 'test-account',
+          name: `multi-ws-grant-${Date.now()}`
+        })
+        .expect(201);
+      const grantName = grantRes.body.name;
+
       const { publicKey, privateKey } = generateKeyPair();
       const fingerprint = getFingerprint(publicKey);
       const agentName = `multi-ws-${Date.now()}`;
       const timestamp = Date.now();
       const body = {
-        codeAccessPublicKey: 'code-access-key-multi',
-        realm: { repository: 'test/multi-ws', read: 1, write: 0, baseUrl: 'https://api.github.com' },
-        type: 'github'
+        serviceAccessKey: 'code-access-key-multi',
+        realm: { repository: 'test/multi-ws', read: 1, write: 0 },
+        grantApi: grantName
       };
       const bodyString = JSON.stringify(body);
       const signature = signData(privateKey, `${timestamp}${bodyString}`);
@@ -669,14 +778,37 @@ describe('E2E Tests', () => {
 
       ws.send(JSON.stringify({ type: 'subscribe_requests' }));
 
+      // Create grant type and grant first
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grant-types')
+        .send({
+          name: 'github',
+          grantCode: 'async function grant() { return { token: "test" }; }',
+          revokeCode: 'async function revoke() { return { revoked: true }; }',
+          getStatusCode: 'async function getStatus() { return { active: true }; }'
+        })
+        .catch(() => { /* grant type may already exist */ });
+
+      const grantRes = await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: 'github',
+          baseURL: 'https://api.github.com',
+          secret: 'test-secret',
+          account: 'test-account',
+          name: `ws-deny-grant-${Date.now()}`
+        })
+        .expect(201);
+      const grantName = grantRes.body.name;
+
       const { publicKey, privateKey } = generateKeyPair();
       const fingerprint = getFingerprint(publicKey);
       const agentName = `ws-deny-${Date.now()}`;
       const timestamp = Date.now();
       const body = {
-        codeAccessPublicKey: 'code-access-key-deny',
-        realm: { repository: 'test/ws-deny', read: 1, write: 0, baseUrl: 'https://api.github.com' },
-        type: 'github'
+        serviceAccessKey: 'code-access-key-deny',
+        realm: { repository: 'test/ws-deny', read: 1, write: 0 },
+        grantApi: grantName
       };
       const bodyString = JSON.stringify(body);
       const signature = signData(privateKey, `${timestamp}${bodyString}`);
@@ -748,19 +880,41 @@ describe('E2E Tests', () => {
     });
 
     it('full flow: register agent -> request access -> approve -> verify', async () => {
+      // Create grant type and grant first
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grant-types')
+        .send({
+          name: 'github',
+          grantCode: 'async function grant() { return { token: "test" }; }',
+          revokeCode: 'async function revoke() { return { revoked: true }; }',
+          getStatusCode: 'async function getStatus() { return { active: true }; }'
+        })
+        .catch(() => { /* grant type may already exist */ });
+
+      const grantRes = await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: 'github',
+          baseURL: 'https://api.github.com',
+          secret: 'test-secret',
+          account: 'test-account',
+          name: `full-flow-grant-${Date.now()}`
+        })
+        .expect(201);
+      const grantName = grantRes.body.name;
+
       const { publicKey, privateKey } = generateKeyPair();
       const fingerprint = getFingerprint(publicKey);
       const agentName = `full-flow-${Date.now()}`;
       const timestamp = Date.now();
       const body = {
-        codeAccessPublicKey: 'code-access-key-full',
+        serviceAccessKey: 'code-access-key-full',
         realm: {
           repository: 'full/flow',
           read: 1,
-          write: 1,
-          baseUrl: 'https://api.github.com'
+          write: 1
         },
-        type: 'github'
+        grantApi: grantName
       };
       const bodyString = JSON.stringify(body);
       const signature = signData(privateKey, `${timestamp}${bodyString}`);
@@ -844,9 +998,9 @@ describe('E2E Tests', () => {
       // Request access with custom type
       const timestamp = Date.now();
       const body = {
-        codeAccessPublicKey: 'test-code-key',
-        realm: { repository: 'test/repo', read: 1, write: 0, baseUrl: 'https://api.custom.com' },
-        type: typeName
+        serviceAccessKey: 'test-code-key',
+        realm: { repository: 'test/repo', read: 1, write: 0 },
+        grantApi: grantName
       };
       const signature = signData(privateKey, `${timestamp}${JSON.stringify(body)}`);
 
@@ -900,9 +1054,9 @@ describe('E2E Tests', () => {
       // Request access with custom type (no grant exists)
       const timestamp = Date.now();
       const body = {
-        codeAccessPublicKey: 'test-code-key',
-        realm: { repository: 'test/repo', read: 1, write: 0, baseUrl: 'https://api.custom.com' },
-        type: typeName
+        serviceAccessKey: 'test-code-key',
+        realm: { repository: 'test/repo', read: 1, write: 0 },
+        grantApi: 'non-existent-grant-' + Date.now()
       };
       const signature = signData(privateKey, `${timestamp}${JSON.stringify(body)}`);
 
