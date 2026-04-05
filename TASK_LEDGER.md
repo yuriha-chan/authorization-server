@@ -24,9 +24,9 @@
 - **GREEN**: Update schemas.ts to change requestSchema format ✅
 - **REFACTOR**: Review schema validation logic - Added length constraints ✅
 
-### Task 2.2: Update Grant Schema
-- **RED**: Write test for grantSchema with optional description field
-- **GREEN**: Update schemas.ts to add description to grantSchema
+### Task 2.2: Update Grant Schema ✅
+- **RED**: Write test for grantSchema with optional description field ✅
+- **GREEN**: Update schemas.ts to add description to grantSchema ✅
 - **REFACTOR**: Review schema structure
 
 ## Phase 3: Agent Server (New Endpoint + Modified Handler)
