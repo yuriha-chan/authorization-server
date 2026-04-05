@@ -1,6 +1,7 @@
 // src/entities/Authorization.ts
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { AgentContainer } from './AgentContainer';
+import { GrantAPI } from './GrantAPI';
 
 @Entity('authorizations')
 export class Authorization {
@@ -10,15 +11,14 @@ export class Authorization {
   @Column()
   key: string; // 公開鍵のフィンガープリント
 
-  @Column()
-  type: string; // 'github'
+  @ManyToOne(() => GrantAPI, { eager: true, nullable: false })
+  grantApi: GrantAPI;
 
   @Column({ type: 'json' })
   realm: {
     repository: string;
     read: number;
     write: number;
-    baseUrl: string;
   };
 
   @Column({ nullable: true })
