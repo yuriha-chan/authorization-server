@@ -18,6 +18,21 @@ grantsRouter.get('/', async (req, res) => {
   }
 });
 
+grantsRouter.get('/:id', async (req, res) => {
+  try {
+    const repo = AppDataSource.getRepository(GrantAPI);
+    const grant = await repo.findOneBy({ id: req.params.id });
+
+    if (!grant) {
+      return res.status(404).json({ error: 'Grant not found' });
+    }
+
+    res.json(grant);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch grant' });
+  }
+});
+
 grantsRouter.post('/', async (req, res) => {
   try {
     const validated = grantSchema.parse(req.body);

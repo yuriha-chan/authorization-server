@@ -16,6 +16,23 @@ agentsRouter.get('/', async (req, res) => {
   }
 });
 
+agentsRouter.get('/:id', async (req, res) => {
+  try {
+    const agent = await AppDataSource.getRepository(AgentContainer).findOne({
+      where: { id: req.params.id },
+      relations: ['authorizations']
+    });
+    
+    if (!agent) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+    
+    res.json(agent);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch agent' });
+  }
+});
+
 agentsRouter.delete('/:id', async (req, res) => {
   try {
     const repo = AppDataSource.getRepository(AgentContainer);

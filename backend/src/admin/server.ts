@@ -10,6 +10,8 @@ import { requestsRouter } from './routes/requests';
 import { authorizationsRouter } from './routes/authorizations';
 import { eventsRouter } from './routes/events';
 import { AppDataSource } from '../db/data-source';
+import { AgentContainer } from '../entities/AgentContainer';
+import { Authorization } from '../entities/Authorization';
 import fs from 'fs';
 import path from 'path';
 
@@ -24,6 +26,37 @@ app.use(express.json());
 app.get('/api/status', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now(), role: 'admin' });
 });
+
+app.get('/api/overview', async (req, res) => {
+  try {
+    const agentRepo = AppDataSource.getRepository(AgentContainer);
+    const authRepo = AppDataSource.getRepository(Authorization);
+
+    const [activeAgents, totalAgents] = await Promise.all([
+      agentRepo.count({ where: { state: 'active' } }),
+      agentRepo.count()
+    ]);
+
+    const [activeAuthorizations, totalAuthorizations] = await Promise.all([
+      authRepo.count({ where: { state: 'active' } }),
+      authRepo.count()
+    ]);
+
+    res.json({
+      agents: {
+        active: activeAgents,
+        total: totalAgents
+      },
+      authorizations: {
+        active: activeAuthorizations,
+        total: totalAuthorizations
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch overview' });
+  }
+});
+
 app.use('/api/agents', agentsRouter);
 app.use('/api/grants', grantsRouter);
 app.use('/api/notifications', notificationsRouter);

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { BrowserRouter, Routes, Route, Link as RouterLink, useNavigate, useLocation } from "react-router-dom";
 import { ChakraProvider, createSystem, defaultConfig, Box, Flex, VStack, HStack, Text, Badge, Button, IconButton, Input, useDisclosure, Table, Heading, Grid, Spinner, Center } from "@chakra-ui/react";
 import { Dialog } from "@chakra-ui/react";
 import { Drawer } from "@chakra-ui/react";
@@ -10,8 +11,26 @@ import { Avatar } from "@chakra-ui/react";
 import { ThemeProvider, useTheme } from "next-themes";
 import { api } from "./api";
 import { Toaster, toaster } from "./components/ui/toaster";
+import { ContainerDetail } from "./pages/ContainerDetail";
+import { AuthorizationDetail } from "./pages/AuthorizationDetail";
+import { GrantDetail } from "./pages/GrantDetail";
+import {
+  StateBadge,
+  TypeBadge,
+  PermissionBadge,
+  FpBadge,
+  Dot,
+  expiryLabel,
+  stateColor,
+  useCommonStyles,
+  cardStyles,
+  tableStyles,
+  linkStyles,
+  GrantForm,
+  ContainerWithFingerprint,
+} from "./components/common";
 
-const useColorModeValue = (light, dark) => {
+export const useColorModeValue = (light, dark) => {
   const { resolvedTheme } = useTheme();
   return resolvedTheme === "dark" ? dark : light;
 };
@@ -75,37 +94,7 @@ const timeAgo = (ts) => {
   return `${Math.floor(d / 3600)}h ago`;
 };
 
-const expiryLabel = (ms) => {
-  const d = ms - Date.now();
-  if (d < 0) return "Expired";
-  const days = Math.floor(d / 86400000);
-  if (days === 0) return "Today";
-  return `${days}d`;
-};
 
-const stateColor = (s) => {
-  if (s === "active") return "green";
-  if (s === "expired" || s === "revoked") return "red";
-  if (s === "pending") return "yellow";
-  return "gray";
-};
-
-const Dot = ({ color = "green", pulse = false }) => (
-  <Box position="relative" display="inline-flex" alignItems="center" justifyContent="center" width="10px" height="10px">
-    {pulse && (
-      <Box position="absolute" width="10px" height="10px" borderRadius="full" bg={`${color}.500`} opacity={0.4}
-        css={{ animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite", "@keyframes ping": { "0%": { transform: "scale(1)", opacity: 0.4 }, "100%": { transform: "scale(2.5)", opacity: 0 } } }}
-      />
-    )}
-    <Box width="8px" height="8px" borderRadius="full" bg={`${color}.400`} />
-  </Box>
-);
-
-const FpBadge = ({ fp }) => (
-  <Text fontSize="10px" fontFamily="mono" px={2} py={0.5} borderRadius="sm" bg="surface.700" color="gray.300" display="inline-block" truncate maxWidth="180px">
-    {fp}
-  </Text>
-);
 
 const NAV = [
   { id: "overview", label: "Overview", icon: "⬡" },
@@ -192,9 +181,12 @@ const StatCard = ({ label, value, sub, accent, icon }) => {
   );
 };
 
-const OverviewPanel = ({ status, pending, agents }) => {
+const OverviewPanel = ({ status, pending, agents, overview, onNav }) => {
   const textColor = useColorModeValue("gray.800", "gray.100");
   const mutedColor = useColorModeValue("gray.600", "gray.500");
+  const bg = useColorModeValue("white", "surface.800");
+  const border = useColorModeValue("gray.200", "surface.600");
+  
   return (
     <VStack gap={6} align="stretch">
       <HStack justify="space-between">
@@ -204,18 +196,60 @@ const OverviewPanel = ({ status, pending, agents }) => {
         </VStack>
       </HStack>
 
-      <Grid templateColumns="repeat(auto-fit, minmax(160px, 1fr))" gap={4}>
-        <StatCard label="Active Agents" value={status.agents} icon="◻" />
-        <StatCard label="Pending Requests" value={status.pendingRequests} accent={status.pendingRequests > 0 ? "warn.400" : "brand.400"} icon="◈" />
-        <StatCard label="Authorizations" value={status.activeAuthorizations} icon="◆" />
-      </Grid>
+      {overview && (
+        <Grid templateColumns="repeat(auto-fit, minmax(160px, 1fr))" gap={4}>
+          <Box 
+            bg={bg} border="1px solid" borderColor={border} borderRadius="8px" p={3} 
+            cursor="pointer" _hover={{ borderColor: "brand.400" }} 
+            onClick={() => onNav("agents")}
+          >
+            <VStack gap={1} align="start">
+              <Text fontSize="10px" color={mutedColor} fontFamily="mono">Agents</Text>
+              <HStack gap={2}>
+                <Text fontSize="24px" fontFamily="mono" fontWeight="600" color="brand.400">{overview.agents.active}</Text>
+                <Text fontSize="12px" color={mutedColor} fontFamily="mono">/ {overview.agents.total}</Text>
+              </HStack>
+            </VStack>
+          </Box>
+          
+          <Box 
+            bg={bg} border="1px solid" borderColor={border} borderRadius="8px" p={3}
+            cursor="pointer" _hover={{ borderColor: "warn.400" }}
+            onClick={() => onNav("requests")}
+          >
+            <VStack gap={1} align="start">
+              <Text fontSize="10px" color={mutedColor} fontFamily="mono">Pending</Text>
+              <HStack gap={2}>
+                <Text fontSize="24px" fontFamily="mono" fontWeight="600" color={pending.length > 0 ? "warn.400" : "brand.400"}>{pending.length}</Text>
+                <Text fontSize="12px" color={mutedColor} fontFamily="mono">requests</Text>
+              </HStack>
+            </VStack>
+          </Box>
+          
+          <Box 
+            bg={bg} border="1px solid" borderColor={border} borderRadius="8px" p={3}
+            cursor="pointer" _hover={{ borderColor: "brand.400" }}
+            onClick={() => onNav("agents")}
+          >
+            <VStack gap={1} align="start">
+              <Text fontSize="10px" color={mutedColor} fontFamily="mono">Authorizations</Text>
+              <HStack gap={2}>
+                <Text fontSize="24px" fontFamily="mono" fontWeight="600" color="brand.400">{overview.authorizations.active}</Text>
+                <Text fontSize="12px" color={mutedColor} fontFamily="mono">/ {overview.authorizations.total}</Text>
+              </HStack>
+            </VStack>
+          </Box>
+        </Grid>
+      )}
 
       {pending.length > 0 && (
         <Box>
           <Text fontSize="10px" fontFamily="mono" letterSpacing="0.12em" textTransform="uppercase" color="gray.500" mb={3}>Recent Pending Requests</Text>
           <VStack gap={2} align="stretch">
             {pending.slice(0, 3).map((r) => (
-              <RequestRow key={r.id} req={r} compact />
+              <Box key={r.id} cursor="pointer" onClick={() => onNav("requests")}>
+                <RequestRow req={r} compact />
+              </Box>
             ))}
           </VStack>
         </Box>
@@ -238,30 +272,25 @@ const RequestRow = ({ req, compact, onApprove, onDeny }) => {
     >
       <Flex gap={4} align={compact ? "center" : "start"} flexWrap="wrap">
         <VStack gap={1} align="start" flex={1} minWidth="200px">
+          {/* Line 1: Type and Base URL */}
           <HStack gap={2} flexWrap="wrap">
             <Badge colorPalette="blue" fontFamily="mono" fontSize="9px">{auth.type.toUpperCase()}</Badge>
+            <Text fontSize="10px" fontFamily="mono" color="gray.500">{auth.realm.baseUrl}</Text>
+          </HStack>
+          {/* Line 2: Repository and Permissions */}
+          <HStack gap={2} flexWrap="wrap">
             <Text fontSize="12px" fontFamily="mono" fontWeight="600" color={textColor}>
               {auth.realm.repository}
             </Text>
+            {auth.realm.read === 1 && <Badge colorPalette="green" fontSize="9px">READ</Badge>}
+            {auth.realm.write === 1 && <Badge colorPalette="orange" fontSize="9px">WRITE</Badge>}
           </HStack>
-          <HStack gap={2} flexWrap="wrap">
-            <Text fontSize="10px" fontFamily="mono" color="gray.500">{auth.container.uniqueName}</Text>
-            {!compact && <FpBadge fp={auth.container.fingerprint} />}
-          </HStack>
+          {/* Line 3: Container with fingerprint */}
+          <ContainerWithFingerprint container={auth.container} useColorModeValue={useColorModeValue} />
         </VStack>
 
-        {!compact && (
-          <HStack gap={3}>
-            <HStack gap={1}>
-              {auth.realm.read ? <Badge colorPalette="green" fontSize="9px">READ</Badge> : null}
-              {auth.realm.write ? <Badge colorPalette="orange" fontSize="9px">WRITE</Badge> : null}
-            </HStack>
-            <Text fontSize="10px" fontFamily="mono" color="gray.500">{auth.realm.baseUrl}</Text>
-          </HStack>
-        )}
-
         <HStack gap={2} align="center">
-          <Text fontSize="10px" fontFamily="mono" color="gray.500">{timeAgo(req.timestamp)}</Text>
+          <Text fontSize="10px" fontFamily="mono" color="gray.500">{timeAgo(req.createdAt)}</Text>
           {!compact && (
             <>
               <Input size="xs" width="90px" value={revokeTime} onChange={e => setRevokeTime(e.target.value)} fontFamily="mono" placeholder="TTL (s)" />
@@ -335,7 +364,9 @@ const AgentsPanel = ({ agents, onDelete, onViewAuths }) => {
             {pagedAgents.map((a) => (
               <Table.Row key={a.id} _hover={{ bg: hoverBg }} transition="background 0.1s">
                 <Table.Cell>
-                  <Text fontSize="12px" fontFamily="mono" fontWeight="600">{a.uniqueName}</Text>
+                  <RouterLink to={`/container/${a.id}`}>
+                    <Text fontSize="12px" fontFamily="mono" fontWeight="600" color="brand.500" _hover={{ textDecoration: 'underline' }}>{a.uniqueName}</Text>
+                  </RouterLink>
                 </Table.Cell>
                 <Table.Cell><FpBadge fp={a.fingerprint} /></Table.Cell>
                 <Table.Cell>
@@ -376,44 +407,6 @@ const AgentsPanel = ({ agents, onDelete, onViewAuths }) => {
   );
 };
 
-const GrantForm = ({ initial, onSave, onCancel }) => {
-  const [form, setForm] = useState(initial || { name: "", type: "github", baseURL: "", account: "", secret: "", defaultRevokeTime: 3600 });
-  const f = (k) => (v) => setForm((p) => ({ ...p, [k]: v }));
-
-  return (
-    <VStack gap={4} align="stretch">
-      <Field.Root>
-        <Field.Label fontSize="11px" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase" color="gray.500">Name</Field.Label>
-        <Input value={form.name} onChange={e => f("name")(e.target.value)} placeholder="GitHub Primary" />
-      </Field.Root>
-      <Field.Root>
-        <Field.Label fontSize="11px" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase" color="gray.500">Type</Field.Label>
-        <Input value={form.type} readOnly fontFamily="mono" color="gray.400" />
-      </Field.Root>
-      <Field.Root>
-        <Field.Label fontSize="11px" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase" color="gray.500">Base URL</Field.Label>
-        <Input value={form.baseURL} onChange={e => f("baseURL")(e.target.value)} placeholder="https://api.github.com" />
-      </Field.Root>
-      <Field.Root>
-        <Field.Label fontSize="11px" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase" color="gray.500">Account</Field.Label>
-        <Input value={form.account} onChange={e => f("account")(e.target.value)} placeholder="org-main" />
-      </Field.Root>
-      <Field.Root>
-        <Field.Label fontSize="11px" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase" color="gray.500">Secret Token</Field.Label>
-        <Input type="password" value={form.secret} onChange={e => f("secret")(e.target.value)} placeholder="ghp_•••••••••••••••" />
-      </Field.Root>
-      <Field.Root>
-        <Field.Label fontSize="11px" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase" color="gray.500">Default Revoke Time (s)</Field.Label>
-        <Input type="number" value={form.defaultRevokeTime} onChange={e => f("defaultRevokeTime")(+e.target.value)} />
-      </Field.Root>
-      <HStack justify="flex-end" gap={2} pt={2}>
-        <Button size="sm" variant="ghost" onClick={onCancel} fontFamily="mono">Cancel</Button>
-        <Button size="sm" colorPalette="brand" onClick={() => onSave(form)} fontFamily="mono">Save</Button>
-      </HStack>
-    </VStack>
-  );
-};
-
 const GrantsPanel = ({ grants, onAdd, onEdit, onDelete }) => {
   const { open, onOpen, onClose } = useDisclosure();
   const [editing, setEditing] = useState(null);
@@ -447,7 +440,11 @@ const GrantsPanel = ({ grants, onAdd, onEdit, onDelete }) => {
           <Table.Body>
             {grants.map((g) => (
               <Table.Row key={g.id} _hover={{ bg: hoverBg }} transition="background 0.1s">
-                <Table.Cell><Text fontSize="12px" fontFamily="mono" fontWeight="600">{g.name}</Text></Table.Cell>
+                <Table.Cell>
+                  <RouterLink to={`/grant/${g.id}`}>
+                    <Text fontSize="12px" fontFamily="mono" fontWeight="600" color="brand.500" _hover={{ textDecoration: 'underline' }}>{g.name}</Text>
+                  </RouterLink>
+                </Table.Cell>
                 <Table.Cell><Badge colorPalette="blue" fontFamily="mono" fontSize="9px">{g.type}</Badge></Table.Cell>
                 <Table.Cell><Text fontSize="11px" fontFamily="mono" color="gray.400" truncate maxWidth="180px">{g.baseURL}</Text></Table.Cell>
                 <Table.Cell><Text fontSize="12px" fontFamily="mono">{g.account}</Text></Table.Cell>
@@ -617,7 +614,9 @@ const AuthsDrawer = ({ agent, open, onClose, onRevoke, onApprove, onDeny, onUpda
                     <Flex justify="space-between" align="center" mb={2}>
                       <HStack gap={2}>
                         <Badge colorPalette="blue" fontSize="9px" fontFamily="mono">{a.type}</Badge>
-                        <Text fontSize="12px" fontFamily="mono" fontWeight="600">{a.realm?.repository}</Text>
+                        <RouterLink to={`/authorization/${a.id}`}>
+                          <Text fontSize="12px" fontFamily="mono" fontWeight="600" color="brand.500" _hover={{ textDecoration: 'underline' }}>{a.realm?.repository}</Text>
+                        </RouterLink>
                       </HStack>
                       <HStack gap={1}>
                         <Dot color={a.state === "active" ? "green" : "red"} />
@@ -653,22 +652,202 @@ const AuthsDrawer = ({ agent, open, onClose, onRevoke, onApprove, onDeny, onUpda
   );
 };
 
-const mockEvents = [
-  { id: 1, ts: new Date(Date.now() - 10000).toISOString(), type: "request", msg: "New auth request from reasoning-agent-7f2a for org/core-infra" },
-  { id: 2, ts: new Date(Date.now() - 60000).toISOString(), type: "approved", msg: "Authorization approved: code-executor-3d1b → org/ml-models (READ)" },
-  { id: 3, ts: new Date(Date.now() - 180000).toISOString(), type: "revoked", msg: "Authorization revoked: data-analyst-9c4e → org/analytics" },
-  { id: 4, ts: new Date(Date.now() - 600000).toISOString(), type: "register", msg: "Agent registered: data-analyst-9c4e" },
-];
+const LogItem = ({ event }) => {
+  const evColors = {
+    new_pending_request: "warn", request_approved: "brand", request_denied: "danger",
+    agent_updated: "accent", grant_api_updated: "brand", notification_api_updated: "accent",
+    authorization_revoked: "danger", notification_delivery_failed: "error"
+  };
+  const textColor = useColorModeValue("gray.700", "gray.300");
+  const mutedColor = useColorModeValue("gray.500", "gray.500");
+  const c = evColors[event.type] || "gray";
+  const ts = event.timestamp || event.ts;
+  const d = event.data || {};
+
+  const renderStructuredContent = () => {
+    switch (event.type) {
+      case 'new_pending_request':
+        return (
+          <VStack gap={1} align="start">
+            <HStack gap={2} flexWrap="wrap">
+              <Text fontSize="11px" fontFamily="mono" color={textColor}>New</Text>
+              {d.requestId && (
+                <RouterLink to={`/authorization/${d.requestId}`}>
+                  <Text fontSize="11px" fontFamily="mono" color="brand.500" _hover={{ textDecoration: 'underline' }}>
+                    auth
+                  </Text>
+                </RouterLink>
+              )}
+              <Text fontSize="11px" fontFamily="mono" color={textColor}>request</Text>
+              <Text fontSize="11px" fontFamily="mono" color={textColor}>for</Text>
+              {d.realm?.repository && (
+                <Badge colorPalette="blue" fontSize="9px" fontFamily="mono">{d.realm.repository}</Badge>
+              )}
+              <Text fontSize="11px" fontFamily="mono" color={textColor}>to</Text>
+              {d.agentUniqueName && d.containerId && (
+                <RouterLink to={`/container/${d.containerId}`}>
+                  <Text fontSize="11px" fontFamily="mono" color="brand.500" _hover={{ textDecoration: 'underline' }}>
+                    {d.agentUniqueName}
+                  </Text>
+                </RouterLink>
+              )}
+              {d.agentUniqueName && !d.containerId && (
+                <Text fontSize="11px" fontFamily="mono" color={textColor}>{d.agentUniqueName}</Text>
+              )}
+            </HStack>
+          </VStack>
+        );
+      case 'request_approved':
+        return (
+          <VStack gap={1} align="start">
+            <HStack gap={2} flexWrap="wrap">
+              <Badge colorPalette="green" fontSize="9px" fontFamily="mono">APPROVED</Badge>
+              {d.authorizationId && (
+                <RouterLink to={`/authorization/${d.authorizationId}`}>
+                  <Text fontSize="11px" fontFamily="mono" color="brand.500" _hover={{ textDecoration: 'underline' }}>
+                    authorization
+                  </Text>
+                </RouterLink>
+              )}
+              <Text fontSize="11px" fontFamily="mono" color={textColor}>for</Text>
+              {d.realm?.repository && (
+                <Badge colorPalette="blue" fontSize="9px" fontFamily="mono">{d.realm.repository}</Badge>
+              )}
+              <Text fontSize="11px" fontFamily="mono" color={textColor}>to</Text>
+              {d.agentUniqueName && d.containerId && (
+                <RouterLink to={`/container/${d.containerId}`}>
+                  <Text fontSize="11px" fontFamily="mono" color="brand.500" _hover={{ textDecoration: 'underline' }}>
+                    {d.agentUniqueName}
+                  </Text>
+                </RouterLink>
+              )}
+              {d.agentUniqueName && !d.containerId && (
+                <Text fontSize="11px" fontFamily="mono" color={textColor}>{d.agentUniqueName}</Text>
+              )}
+            </HStack>
+          </VStack>
+        );
+      case 'request_denied':
+        return (
+          <VStack gap={1} align="start">
+            <HStack gap={2} flexWrap="wrap">
+              <Badge colorPalette="red" fontSize="9px" fontFamily="mono">DENIED</Badge>
+              {d.requestId && (
+                <RouterLink to={`/authorization/${d.requestId}`}>
+                  <Text fontSize="11px" fontFamily="mono" color="brand.500" _hover={{ textDecoration: 'underline' }}>
+                    authorization
+                  </Text>
+                </RouterLink>
+              )}
+              <Text fontSize="11px" fontFamily="mono" color={textColor}>for</Text>
+              {d.realm?.repository && (
+                <Badge colorPalette="blue" fontSize="9px" fontFamily="mono">{d.realm.repository}</Badge>
+              )}
+              <Text fontSize="11px" fontFamily="mono" color={textColor}>to</Text>
+              {d.agentUniqueName && d.containerId && (
+                <RouterLink to={`/container/${d.containerId}`}>
+                  <Text fontSize="11px" fontFamily="mono" color="brand.500" _hover={{ textDecoration: 'underline' }}>
+                    {d.agentUniqueName}
+                  </Text>
+                </RouterLink>
+              )}
+              {d.agentUniqueName && !d.containerId && (
+                <Text fontSize="11px" fontFamily="mono" color={textColor}>{d.agentUniqueName}</Text>
+              )}
+            </HStack>
+          </VStack>
+        );
+      case 'agent_updated':
+        return (
+          <VStack gap={1} align="start">
+            <HStack gap={2} flexWrap="wrap">
+              <Badge colorScheme="blue" size="sm" fontFamily="mono">AGENT</Badge>
+              <Badge colorScheme="yellow" size="sm" fontFamily="mono">{d.action}</Badge>
+              {d.agent?.uniqueName && (
+                <RouterLink to={`/container/${d.agent.id}`}>
+                  <Text fontSize="11px" fontFamily="mono" color="brand.500" _hover={{ textDecoration: 'underline' }}>
+                    {d.agent.uniqueName}
+                  </Text>
+                </RouterLink>
+              )}
+            </HStack>
+          </VStack>
+        );
+      case 'grant_api_updated':
+        return (
+          <VStack gap={1} align="start">
+            <HStack gap={2} flexWrap="wrap">
+              <Badge colorScheme="purple" size="sm" fontFamily="mono">GRANT API</Badge>
+              <Badge colorScheme="yellow" size="sm" fontFamily="mono">{d.action}</Badge>
+              {d.grantApi?.name && (
+                <RouterLink to={`/grant/${d.grantApi.id}`}>
+                  <Text fontSize="11px" fontFamily="mono" color="brand.500" _hover={{ textDecoration: 'underline' }}>
+                    {d.grantApi.name}
+                  </Text>
+                </RouterLink>
+              )}
+            </HStack>
+          </VStack>
+        );
+      case 'notification_api_updated':
+        return (
+          <VStack gap={1} align="start">
+            <HStack gap={2} flexWrap="wrap">
+              <Badge colorScheme="cyan" size="sm" fontFamily="mono">NOTIFICATION API</Badge>
+              <Badge colorScheme="yellow" size="sm" fontFamily="mono">{d.action}</Badge>
+              {d.notificationApi?.name && (
+                <Text fontSize="11px" fontFamily="mono" color={textColor}>{d.notificationApi.name}</Text>
+              )}
+            </HStack>
+          </VStack>
+        );
+      case 'authorization_revoked':
+        return (
+          <VStack gap={1} align="start">
+            <HStack gap={2} flexWrap="wrap">
+              <Badge colorScheme="red" size="sm" fontFamily="mono">REVOKED</Badge>
+              <Text fontSize="11px" fontFamily="mono" color={textColor}>authorization for</Text>
+              {d.containerUniqueName && (
+                <RouterLink to={`/container/${d.authorizationId}`}>
+                  <Text fontSize="11px" fontFamily="mono" color="brand.500" _hover={{ textDecoration: 'underline' }}>
+                    {d.containerUniqueName}
+                  </Text>
+                </RouterLink>
+              )}
+            </HStack>
+          </VStack>
+        );
+      case 'notification_delivery_failed':
+        return (
+          <VStack gap={1} align="start">
+            <HStack gap={2} flexWrap="wrap">
+              <Badge colorScheme="red" size="sm" fontFamily="mono">FAILED</Badge>
+              <Text fontSize="11px" fontFamily="mono" color={textColor}>notification delivery to</Text>
+              {d.channel && (
+                <Badge colorScheme="gray" size="sm" fontFamily="mono">{d.channel}</Badge>
+              )}
+            </HStack>
+          </VStack>
+        );
+      default:
+        return <Text fontSize="11px" fontFamily="mono" color={textColor}>{event.message || event.msg || event.type}</Text>;
+    }
+  };
+
+  return (
+    <HStack key={event.id} gap={3} align="start">
+      <Text fontSize="9px" fontFamily="mono" color={mutedColor} flexShrink={0} pt={0.5} width="60px" textAlign="right">{timeAgo(ts)}</Text>
+      <Box width="6px" height="6px" borderRadius="full" bg={`${c === "brand" ? "brand" : c === "danger" ? "red" : c === "warn" ? "yellow" : c === "error" ? "red" : "blue"}.400`} mt={1.5} flexShrink={0} />
+      <Box flex={1}>
+        {renderStructuredContent()}
+      </Box>
+    </HStack>
+  );
+};
 
 const EventLog = ({ events = [] }) => {
-  const evColors = { 
-    new_pending_request: "warn", request_approved: "brand", request_denied: "danger", 
-    agent_updated: "accent", grant_api_updated: "brand", notification_api_updated: "accent", 
-    authorization_revoked: "danger", notification_delivery_failed: "error" 
-  };
   const bg = useColorModeValue("gray.50", "surface.900");
   const border = useColorModeValue("gray.200", "surface.600");
-  const textColor = useColorModeValue("gray.700", "gray.300");
 
   const displayEvents = events.length > 0 ? events : mockEvents;
 
@@ -676,24 +855,17 @@ const EventLog = ({ events = [] }) => {
     <Box bg={bg} border="1px solid" borderColor={border} borderRadius="10px" p={4} maxHeight="280px" overflowY="auto">
       <Text fontSize="9px" fontFamily="mono" letterSpacing="0.14em" textTransform="uppercase" color="gray.500" mb={3}>Event Log · Live</Text>
       <VStack gap={2} align="stretch">
-        {displayEvents.map((e) => {
-          const c = evColors[e.type] || "gray";
-          const ts = e.timestamp || e.ts;
-          const msg = e.message || e.msg;
-          return (
-            <HStack key={e.id} gap={3} align="start">
-              <Text fontSize="9px" fontFamily="mono" color="gray.500" flexShrink={0} pt={0.5}>{timeAgo(ts)}</Text>
-              <Box width="6px" height="6px" borderRadius="full" bg={`${c === "brand" ? "brand" : c === "danger" ? "red" : c === "warn" ? "yellow" : c === "error" ? "red" : "blue"}.400`} mt={1.5} flexShrink={0} />
-              <Text fontSize="11px" fontFamily="mono" color={textColor} lineHeight={1.5}>{msg}</Text>
-            </HStack>
-          );
-        })}
+        {displayEvents.map((e) => (
+          <LogItem key={e.id} event={e} />
+        ))}
       </VStack>
     </Box>
   );
 };
 
-function AppInner() {
+function Dashboard() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [nav, setNav] = useState("overview");
   const [agents, setAgents] = useState([]);
   const [grants, setGrants] = useState([]);
@@ -702,6 +874,7 @@ function AppInner() {
   const [eventLogs, setEventLogs] = useState([]);
   const [processedIds, setProcessedIds] = useState(new Set());
   const [status, setStatus] = useState(null);
+  const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedAgent, setSelectedAgent] = useState(null);
   const { open: isAuthsOpen, onOpen: onAuthsOpen, onClose: onAuthsClose } = useDisclosure();
@@ -709,19 +882,21 @@ function AppInner() {
 
   const loadData = async () => {
     try {
-      const [agentsData, grantsData, notifsData, pendingData, statusData, logsData] = await Promise.all([
+      const [agentsData, grantsData, notifsData, pendingData, statusData, logsData, overviewData] = await Promise.all([
         api.getAgents().catch(() => []),
         api.getGrants().catch(() => []),
         api.getNotifications().catch(() => []),
         api.getPendingRequests().catch(() => []),
         api.getStatus().catch(() => ({})),
         api.getEventLogs().catch(() => []),
+        api.getOverview().catch(() => null),
       ]);
       setAgents(agentsData);
       setGrants(grantsData);
       setNotifs(notifsData);
       setPending(pendingData);
       setStatus(statusData);
+      setOverview(overviewData);
       setEventLogs(logsData);
       setProcessedIds(new Set(logsData.map(l => l.id)));
     } catch (err) {
@@ -761,25 +936,8 @@ function AppInner() {
               id: msg.data.id,
               timestamp: now,
               type: msg.type,
-              message: `New auth request from ${msg.data.agentUniqueName} for ${msg.data.realm}`
-            }, ...prev].slice(0, 100));
-            break;
-          case 'request_approved':
-            setPending(prev => prev.filter(r => r.id !== msg.data.requestId));
-            setEventLogs(prev => [{
-              id: msg.data.id,
-              timestamp: now,
-              type: msg.type,
-              message: `Authorization approved: ${msg.data.requestId}`
-            }, ...prev].slice(0, 100));
-            break;
-          case 'request_denied':
-            setPending(prev => prev.filter(r => r.id !== msg.data.requestId));
-            setEventLogs(prev => [{
-              id: msg.data.id,
-              timestamp: now,
-              type: msg.type,
-              message: `Authorization denied: ${msg.data.requestId}`
+              message: '',
+              data: msg.data
             }, ...prev].slice(0, 100));
             break;
           case 'agent_updated':
@@ -798,7 +956,8 @@ function AppInner() {
               id: msg.data.id,
               timestamp: now,
               type: msg.type,
-              message: `Agent ${msg.data.action}: ${msg.data.agent?.uniqueName}`
+              message: '',
+              data: msg.data
             }, ...prev].slice(0, 100));
             break;
           case 'grant_api_updated':
@@ -836,7 +995,8 @@ function AppInner() {
               id: msg.data.id,
               timestamp: now,
               type: msg.type,
-              message: `Notification API ${msg.data.action}: ${msg.data.notificationApi?.name}`
+              message: '',
+              data: msg.data
             }, ...prev].slice(0, 100));
             break;
           case 'authorization_revoked':
@@ -844,7 +1004,8 @@ function AppInner() {
               id: msg.data.id,
               timestamp: now,
               type: msg.type,
-              message: `Authorization revoked: ${msg.data.containerUniqueName}`
+              message: '',
+              data: msg.data
             }, ...prev].slice(0, 100));
             break;
           case 'notification_delivery_failed':
@@ -852,7 +1013,8 @@ function AppInner() {
               id: msg.data.id,
               timestamp: now,
               type: msg.type,
-              message: `Notification delivery failed: ${msg.data.channel}`
+              message: '',
+              data: msg.data
             }, ...prev].slice(0, 100));
             break;
         }
@@ -1004,7 +1166,7 @@ function AppInner() {
   };
 
   const panels = {
-    overview: <OverviewPanel status={status || { version: "Loading...", agents: 0, pendingRequests: 0, activeAuthorizations: 0, uptime: "..." }} pending={pending} agents={agents} />,
+    overview: <OverviewPanel status={status || { version: "Loading...", agents: 0, pendingRequests: 0, activeAuthorizations: 0, uptime: "..." }} pending={pending} agents={agents} overview={overview} onNav={setNav} />,
     requests: <PendingPanel requests={pending} onApprove={handleApprove} onDeny={handleDeny} />,
     agents: <AgentsPanel agents={agents} onDelete={handleDeleteAgent} onViewAuths={handleViewAuths} />,
     grants: <GrantsPanel grants={grants} onAdd={handleAddGrant} onEdit={handleEditGrant} onDelete={handleDeleteGrant} />,
@@ -1045,6 +1207,19 @@ function AppInner() {
       <AuthsDrawer agent={selectedAgent} open={isAuthsOpen} onClose={onAuthsClose} onRevoke={handleRevokeAuth} onApprove={handleApproveAuth} onDeny={handleDenyAuth} onUpdateRevokeTime={handleUpdateRevokeTime} />
       <Toaster toaster={toaster} />
     </Box>
+  );
+}
+
+function AppInner() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/container/:id" element={<ContainerDetail />} />
+        <Route path="/authorization/:id" element={<AuthorizationDetail />} />
+        <Route path="/grant/:id" element={<GrantDetail />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

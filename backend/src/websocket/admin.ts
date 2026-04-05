@@ -138,59 +138,66 @@ export class AdminWebSocket {
 
     eventBus.subscribe('request:new', async (data) => {
       console.log('[AdminWebSocket] Received request:new event', data);
-      await eventNotifier.notify('new_pending_request', `New auth request from ${data.agentUniqueName} for ${data.realm}`, {
+      await eventNotifier.notify('new_pending_request', '', {
         requestId: data.requestId,
         agentUniqueName: data.agentUniqueName,
         fingerprint: data.fingerprint,
-        realm: data.realm
+        realm: data.realm,
+        containerId: data.containerId
       });
     });
     
     eventBus.subscribe('request:approved', async (data) => {
-      await eventNotifier.notify('request_approved', `Authorization approved: ${data.agentUniqueName} → ${data.realm}`, {
+      await eventNotifier.notify('request_approved', '', {
         requestId: data.requestId,
         authorizationId: data.authorizationId,
-        approvedBy: data.admin
+        approvedBy: data.admin,
+        agentUniqueName: data.agentUniqueName,
+        realm: data.realm,
+        containerId: data.containerId
       });
     });
-    
+
     eventBus.subscribe('request:denied', async (data) => {
-      await eventNotifier.notify('request_denied', `Authorization denied: ${data.agentUniqueName} → ${data.realm}`, {
+      await eventNotifier.notify('request_denied', '', {
         requestId: data.requestId,
-        deniedBy: data.admin
+        deniedBy: data.admin,
+        agentUniqueName: data.agentUniqueName,
+        realm: data.realm,
+        containerId: data.containerId
       });
     });
     
     eventBus.subscribe('agent:updated', async (data) => {
-      await eventNotifier.notify('agent_updated', `Agent ${data.action}: ${data.agent?.uniqueName}`, {
+      await eventNotifier.notify('agent_updated', '', {
         action: data.action,
         agent: data.agent
       });
     });
     
     eventBus.subscribe('grant:updated', async (data) => {
-      await eventNotifier.notify('grant_api_updated', `Grant API ${data.action}: ${data.grantApi?.name}`, {
+      await eventNotifier.notify('grant_api_updated', '', {
         action: data.action,
         grantApi: data.grantApi
       });
     });
     
     eventBus.subscribe('notification:updated', async (data) => {
-      await eventNotifier.notify('notification_api_updated', `Notification API ${data.action}: ${data.notificationApi?.name}`, {
+      await eventNotifier.notify('notification_api_updated', '', {
         action: data.action,
         notificationApi: data.notificationApi
       });
     });
     
     eventBus.subscribe('authorization:revoked', async (data) => {
-      await eventNotifier.notify('authorization_revoked', `Authorization revoked: ${data.containerUniqueName}`, {
+      await eventNotifier.notify('authorization_revoked', '', {
         authorizationId: data.authorizationId,
         containerUniqueName: data.containerUniqueName
       });
     });
     
     eventBus.subscribe('notification:failed', async (data) => {
-      await eventNotifier.notify('notification_delivery_failed', `Notification delivery failed: ${data.channel}`, {
+      await eventNotifier.notify('notification_delivery_failed', '', {
         requestId: data.requestId,
         channel: data.channel,
         error: data.error

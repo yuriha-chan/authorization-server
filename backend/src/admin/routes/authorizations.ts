@@ -6,6 +6,30 @@ import { AuthorizationRequest } from '../../entities/AuthorizationRequest';
 
 export const authorizationsRouter = Router();
 
+authorizationsRouter.get('/:id', async (req, res) => {
+  try {
+    const repo = AppDataSource.getRepository(Authorization);
+    const auth = await repo.findOne({
+      where: { id: req.params.id },
+      relations: ['container']
+    });
+
+    if (!auth) {
+      return res.status(404).json({ error: 'Authorization not found' });
+    }
+
+    const requestRepo = AppDataSource.getRepository(AuthorizationRequest);
+    const requests = await requestRepo.find({
+      where: { authorization: { id: req.params.id } },
+      order: { createdAt: 'DESC' }
+    });
+
+    res.json({ ...auth, requests });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch authorization' });
+  }
+});
+
 authorizationsRouter.patch('/:id', async (req, res) => {
   try {
     const repo = AppDataSource.getRepository(Authorization);
