@@ -46,7 +46,7 @@ export const RequestRow = ({
               {typeof auth.grantApi?.type === 'object' ? auth.grantApi?.type?.name : auth.grantApi?.type}
             </Badge>
             <Text fontSize="10px" fontFamily="mono" color="gray.500">
-              {auth.realm.baseUrl}
+              {auth.grantApi?.baseURL}
             </Text>
           </HStack>
           <HStack gap={2} flexWrap="wrap">

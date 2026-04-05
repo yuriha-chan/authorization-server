@@ -249,7 +249,7 @@ export function AuthorizationDetail() {
                   Base URL
                 </Text>
                 <Text fontSize="sm" fontFamily="mono">
-                  {auth.realm.baseUrl}
+                  {auth.grantApi?.baseURL}
                 </Text>
               </Box>
               <Box>
