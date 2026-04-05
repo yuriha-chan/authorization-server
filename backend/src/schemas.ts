@@ -6,15 +6,14 @@ export const registerSchema = z.object({
 });
 
 export const requestSchema = z.object({
-  codeAccessPublicKey: z.string().min(1),
+  serviceAccessKey: z.string().min(1),
   realm: z.object({
     repository: z.string().min(1),
     read: z.number().int().min(0).max(1),
     write: z.number().int().min(0).max(1),
-    baseUrl: z.string().url()
-  }),
-  type: z.string().default('github')
-});
+  }).strict(),
+  grantApi: z.string().min(1)
+}).strict();
 
 export const grantSchema = z.object({
   type: z.string().min(1),
@@ -23,6 +22,7 @@ export const grantSchema = z.object({
   account: z.string().min(1),
   name: z.string().min(1),
   defaultRevokeTime: z.number().optional(),
+  description: z.string().optional(),
 });
 
 export const notificationSchema = z.object({
