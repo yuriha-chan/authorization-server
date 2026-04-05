@@ -55,14 +55,14 @@
 
 ## Phase 5: Agent Client Script
 
-### Task 5.1: Add list-grants Command
-- **RED**: Write test for list-grants command parsing and API call
-- **GREEN**: Implement list-grants command in agent-client.js
+### Task 5.1: Add list-grants Command ✅
+- **RED**: Write test for list-grants command parsing and API call ✅
+- **GREEN**: Implement list-grants command in agent-client.js ✅
 - **REFACTOR**: Review argument parsing and output format
 
-### Task 5.2: Update request Command
-- **RED**: Write test for updated request command with new argument structure
-- **GREEN**: Update request command to accept grantApiName, key, repository[rw]
+### Task 5.2: Update request Command ✅
+- **RED**: Write test for updated request command with new argument structure ✅
+- **GREEN**: Update request command to accept grantApiName, key, repository[rw] ✅
 - **REFACTOR**: Review request body structure
 
 ## Phase 6: Tests
@@ -94,6 +94,6 @@
 - [x] Phase 2: Validation Schemas (Contracts)
 - [x] Phase 3: Agent Server (New Endpoint + Modified Handler)
 - [x] Phase 4: Admin Routes (Grants + Requests)
-- [ ] Phase 5: Agent Client Script
+- [x] Phase 5: Agent Client Script
 - [ ] Phase 6: Tests
 - [ ] Phase 7: Frontend Types and Display
