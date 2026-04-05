@@ -84,7 +84,7 @@ describe('GrantAPI Type Relationship', () => {
           baseURL: 'https://api.github.com',
           secret: 'test-secret',
           account: 'test-account',
-          name: 'test-grant-github'
+          name: `test-grant-github-${Date.now()}`
         })
         .expect(201);
 
@@ -101,7 +101,7 @@ describe('GrantAPI Type Relationship', () => {
           baseURL: 'https://api.example.com',
           secret: 'test-secret',
           account: 'test-account',
-          name: 'test-grant-invalid'
+          name: `test-grant-invalid-${Date.now()}`
         })
         .expect(400);
 
@@ -129,7 +129,7 @@ describe('GrantAPI Type Relationship', () => {
           baseURL: 'https://api.custom.com',
           secret: 'test-secret',
           account: 'test-account',
-          name: 'test-grant-custom'
+          name: `test-grant-custom-${Date.now()}`
         })
         .expect(201);
 
@@ -147,7 +147,7 @@ describe('GrantAPI Type Relationship', () => {
           baseURL: 'https://api.github.com',
           secret: 'test-secret',
           account: 'test-account',
-          name: 'test-grant-update'
+          name: `test-grant-update-${Date.now()}`
         })
         .expect(201);
 

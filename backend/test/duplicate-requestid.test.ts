@@ -111,6 +111,29 @@ describe('Duplicate RequestId Bug Test', () => {
   });
 
   it('single request-access call should create exactly one pending request', async () => {
+    // Create a grant type and grant first
+    const grantApiName = `dup-test-grant-${Date.now()}`;
+    await request(`http://localhost:${ADMIN_PORT}`)
+      .post('/api/grant-types')
+      .send({
+        name: 'github',
+        grantCode: 'async function grant() { return { token: "test" }; }',
+        revokeCode: 'async function revoke() { return { revoked: true }; }',
+        getStatusCode: 'async function getStatus() { return { active: true }; }'
+      })
+      .catch(() => { /* grant type may already exist */ });
+
+    await request(`http://localhost:${ADMIN_PORT}`)
+      .post('/api/grants')
+      .send({
+        type: 'github',
+        baseURL: 'https://api.github.com',
+        secret: 'test-secret',
+        account: 'test-account',
+        name: grantApiName
+      })
+      .expect(201);
+
     // Register an agent
     const { publicKey, privateKey } = generateKeyPair();
     const fingerprint = getFingerprint(publicKey);
@@ -132,9 +155,9 @@ describe('Duplicate RequestId Bug Test', () => {
     // Make a single request-access call
     const timestamp = Date.now();
     const body = {
-      codeAccessPublicKey: 'test-code-key',
-      realm: { repository: 'test/repo', read: 1, write: 0, baseUrl: 'https://api.github.com' },
-      type: 'github'
+      serviceAccessKey: 'test-code-key',
+      realm: { repository: 'test/repo', read: 1, write: 0 },
+      grantApi: grantApiName
     };
     const signature = signData(privateKey, `${timestamp}${JSON.stringify(body)}`);
 

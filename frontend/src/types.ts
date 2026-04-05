@@ -22,7 +22,8 @@ export interface Container {
 export interface Authorization {
   id: string;
   key: string;
-  type: string;
+  type?: string;
+  grantApi?: Grant;
   state: 'active' | 'pending' | 'approved' | 'denied' | 'revoked' | 'expired';
   realm?: Realm;
   container?: Container;
@@ -51,7 +52,9 @@ export interface PendingRequest {
   state: string;
   createdAt: string;
   authorization: {
-    type: string;
+    id: string;
+    key: string;
+    grantApi: Grant;
     realm: Realm;
     container: Container;
   };

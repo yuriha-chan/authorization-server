@@ -43,7 +43,7 @@ export const RequestRow = ({
         <VStack gap={1} align="start" flex={1} minWidth="200px">
           <HStack gap={2} flexWrap="wrap">
             <Badge colorPalette="blue" fontFamily="mono" fontSize="9px">
-              {auth.type.toUpperCase()}
+              {typeof auth.grantApi?.type === 'object' ? auth.grantApi?.type?.name : auth.grantApi?.type}
             </Badge>
             <Text fontSize="10px" fontFamily="mono" color="gray.500">
               {auth.realm.baseUrl}

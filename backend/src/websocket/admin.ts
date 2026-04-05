@@ -152,7 +152,7 @@ export class AdminWebSocket {
         fingerprint: data.fingerprint,
         realm: data.realm,
         containerId: data.containerId,
-        type: data.type,
+        type: data.grantApiType,
         timestamp: data.timestamp
       });
     });

@@ -123,7 +123,7 @@ export const AuthorizationsPanel = ({
                     fontSize="9px"
                     fontFamily="mono"
                   >
-                    {auth.type?.toUpperCase()}
+                    {(typeof auth.grantApi?.type === 'object' ? auth.grantApi?.type?.name : auth.grantApi?.type)?.toUpperCase() || '-'}
                   </Badge>
                 </Table.Cell>
                 <Table.Cell>

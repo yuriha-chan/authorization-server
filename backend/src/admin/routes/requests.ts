@@ -4,6 +4,7 @@ import { AppDataSource } from '../../db/data-source';
 import { AuthorizationRequest } from '../../entities/AuthorizationRequest';
 import { Authorization } from '../../entities/Authorization';
 import { AgentContainer } from '../../entities/AgentContainer';
+import { GrantAPI } from '../../entities/GrantAPI';
 import { eventBus } from '../../events/pubsub';
 import { adminWebSocket } from '../server';
 import { executeGrantCode, findGrantForType } from '../../services/operation-executor';
@@ -14,7 +15,7 @@ requestsRouter.get('/pending', async (req, res) => {
   try {
     const requests = await AppDataSource.getRepository(AuthorizationRequest).find({
       where: { state: 'pending' },
-      relations: ['authorization', 'authorization.container']
+      relations: ['authorization', 'authorization.container', 'authorization.grantApi', 'authorization.grantApi.type']
     });
     res.json(requests);
   } catch (error) {
@@ -30,13 +31,31 @@ requestsRouter.post('/:id/approve', async (req, res) => {
       where: { id: req.params.id, state: 'pending' },
       relations: ['authorization', 'authorization.container']
     });
-    
+
     if (!request) {
       return res.status(404).json({ error: 'Pending request not found' });
     }
-    
+
     const auth = request.authorization;
-    const grantApiTypeName = auth.grantApi?.type?.name;
+
+    // Load grantApi with its type separately to ensure type is available
+    // auth.grantApi may be a reference with just the ID or the full object
+    const grantApiId = auth.grantApi?.id || (auth as any).grantApiId;
+    if (!grantApiId) {
+      return res.status(400).json({
+        error: 'Authorization has no associated Grant API'
+      });
+    }
+    const grantApi = await AppDataSource.getRepository(GrantAPI).findOne({
+      where: { id: grantApiId },
+      relations: ['type']
+    });
+    const grantApiTypeName = grantApi?.type?.name;
+    if (!grantApiTypeName) {
+      return res.status(400).json({
+        error: 'Grant API type not found'
+      });
+    }
 
     // Find grant for this authorization type
     const grant = await findGrantForType(grantApiTypeName);
@@ -45,7 +64,7 @@ requestsRouter.post('/:id/approve', async (req, res) => {
         error: `No active Grant API found for type '${grantApiTypeName}'. Please configure a grant with valid secrets.`
       });
     }
-    
+
     // Execute the grant code
     let secrets: Record<string, any>;
     try {
@@ -53,7 +72,7 @@ requestsRouter.post('/:id/approve', async (req, res) => {
     } catch {
       secrets = { token: grant.secret };
     }
-    
+
     let grantResult;
     try {
       grantResult = await executeGrantCode(

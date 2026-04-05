@@ -141,7 +141,16 @@ function Dashboard() {
               state: 'pending',
               createdAt: new Date(msg.data.timestamp || Date.now()).toISOString(),
               authorization: {
-                type: msg.data.type || '',
+                id: '',
+                key: '',
+                grantApi: {
+                  id: '',
+                  name: msg.data.uniqueName || '',
+                  type: msg.data.type || '',
+                  baseURL: '',
+                  account: '',
+                  defaultRevokeTime: 0,
+                },
                 realm: msg.data.realm || { repository: '', baseUrl: '' },
                 container: {
                   id: msg.data.containerId || '',

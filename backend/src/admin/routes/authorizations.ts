@@ -10,7 +10,7 @@ authorizationsRouter.get('/', async (req, res) => {
   try {
     const repo = AppDataSource.getRepository(Authorization);
     const authorizations = await repo.find({
-      relations: ['container'],
+      relations: ['container', 'grantApi', 'grantApi.type'],
       order: { createdAt: 'DESC' }
     });
     res.json(authorizations);
@@ -24,7 +24,7 @@ authorizationsRouter.get('/:id', async (req, res) => {
     const repo = AppDataSource.getRepository(Authorization);
     const auth = await repo.findOne({
       where: { id: req.params.id },
-      relations: ['container']
+      relations: ['container', 'grantApi', 'grantApi.type']
     });
 
     if (!auth) {

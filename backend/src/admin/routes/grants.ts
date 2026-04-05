@@ -12,6 +12,7 @@ grantsRouter.get('/', async (req, res) => {
   try {
     const grants = await AppDataSource.getRepository(GrantAPI).find({
       where: { state: 'active' },
+      relations: ['type'],
       order: { createdAt: 'DESC' }
     });
     res.json(grants);
@@ -23,7 +24,10 @@ grantsRouter.get('/', async (req, res) => {
 grantsRouter.get('/:id', async (req, res) => {
   try {
     const repo = AppDataSource.getRepository(GrantAPI);
-    const grant = await repo.findOneBy({ id: req.params.id });
+    const grant = await repo.findOne({
+      where: { id: req.params.id },
+      relations: ['type']
+    });
 
     if (!grant) {
       return res.status(404).json({ error: 'Grant not found' });
@@ -83,7 +87,8 @@ grantsRouter.put('/:id', async (req, res) => {
       grant.type = grantType;
     }
     
-    Object.assign(grant, validated);
+    const { type: _ignored, ...updateData } = validated;
+    Object.assign(grant, updateData);
     await repo.save(grant);
     
     // Reload to get the eager-loaded type relationship

@@ -142,7 +142,7 @@ export function AuthorizationDetail() {
                 <Text fontSize="sm" color={styles.textMuted}>
                   Type
                 </Text>
-                <TypeBadge type={auth.type} />
+                <TypeBadge type={typeof auth.grantApi?.type === 'object' ? auth.grantApi?.type?.name || '' : auth.grantApi?.type || ''} />
               </HStack>
               <HStack justify="space-between">
                 <Text fontSize="sm" color={styles.textMuted}>

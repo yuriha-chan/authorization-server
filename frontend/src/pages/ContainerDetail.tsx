@@ -241,7 +241,7 @@ export function ContainerDetail() {
                     <HStack justify="space-between">
                       <VStack align="start" gap={1}>
                         <HStack gap={2}>
-                          <TypeBadge type={auth.type} />
+                          <TypeBadge type={typeof auth.grantApi?.type === 'object' ? auth.grantApi?.type?.name || '' : auth.grantApi?.type || ''} />
                           <Text
                             fontSize="sm"
                             fontFamily="mono"

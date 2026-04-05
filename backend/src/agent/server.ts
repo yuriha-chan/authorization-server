@@ -211,6 +211,7 @@ app.post('/api/request-access', verifySignature, async (req, res) => {
       realm: validated.realm,
       timestamp: Date.now(),
       grantApiName: validated.grantApi,
+      grantApiType: grantApi.type.name,
       containerId: agent!.id
     });
     

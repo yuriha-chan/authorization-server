@@ -366,7 +366,7 @@ describe('E2E Tests', () => {
           baseURL: 'https://api.github.com',
           secret: 'test-secret',
           account: 'test-account',
-          name: 'test-grant'
+          name: `test-grant-${Date.now()}`
         })
         .expect(201);
 
@@ -389,7 +389,7 @@ describe('E2E Tests', () => {
           baseURL: 'https://api.github.com',
           secret: 'test-secret-delete',
           account: 'test-account-delete',
-          name: 'test-grant-to-delete'
+          name: `test-grant-to-delete-${Date.now()}`
         })
         .expect(201);
 
@@ -1078,20 +1078,7 @@ describe('E2E Tests', () => {
       expect(approveRes.body.grantResult.token).toBe(expectedToken);
     });
 
-    it('should fail to approve when no grant exists for type', async () => {
-      const typeName = `no-grant-type-${Date.now()}`;
-      
-      // Create custom type but NO grant
-      await request(`http://localhost:${ADMIN_PORT}`)
-        .post('/api/grant-types')
-        .send({
-          name: typeName,
-          grantCode: 'async function grant() { return { token: "test" }; }',
-          revokeCode: 'async function revoke() { return { revoked: true }; }',
-          getStatusCode: 'async function getStatus() { return { active: true }; }'
-        })
-        .expect(201);
-
+    it('should fail to request access when no grant exists for type', async () => {
       // Register agent
       const { publicKey, privateKey } = generateKeyPair();
       const fingerprint = getFingerprint(publicKey);
@@ -1102,7 +1089,7 @@ describe('E2E Tests', () => {
         .send({ uniqueName: agentName, publicKey })
         .expect(201);
 
-      // Request access with custom type (no grant exists)
+      // Request access with non-existent grantApi should fail
       const timestamp = Date.now();
       const body = {
         serviceAccessKey: 'test-code-key',
@@ -1117,17 +1104,9 @@ describe('E2E Tests', () => {
         .set('x-timestamp', String(timestamp))
         .set('x-fingerprint', fingerprint)
         .send(body)
-        .expect(202);
-
-      const pendingRequestId = requestRes.body.requestId;
-
-      // Approve should fail because no grant exists
-      const approveRes = await request(`http://localhost:${ADMIN_PORT}`)
-        .post(`/api/requests/${pendingRequestId}/approve`)
-        .send({ revokeTime: 3600000 })
         .expect(400);
 
-      expect(approveRes.body.error).toContain('No active Grant API found');
+      expect(requestRes.body.error).toContain('not found or inactive');
     });
 
     it('should validate that GrantAPI type references valid GrantApiType', async () => {
