@@ -20,8 +20,11 @@ export class GrantAPI {
   @Column()
   account: string;
 
-  @Column()
+  @Column({ unique: true })
   name: string;
+
+  @Column({ nullable: true })
+  description: string;
 
   @Column({ default: 86400000 }) // 24 hours in ms
   defaultRevokeTime: number;
