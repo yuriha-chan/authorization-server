@@ -19,10 +19,10 @@
 
 ## Phase 2: Validation Schemas (Contracts)
 
-### Task 2.1: Update Request Schema
-- **RED**: Write test for updated requestSchema with grantApi and serviceAccessKey fields
-- **GREEN**: Update schemas.ts to change requestSchema format
-- **REFACTOR**: Review schema validation logic
+### Task 2.1: Update Request Schema ✅
+- **RED**: Write test for updated requestSchema with grantApi and serviceAccessKey fields ✅
+- **GREEN**: Update schemas.ts to change requestSchema format ✅
+- **REFACTOR**: Review schema validation logic - Added length constraints ✅
 
 ### Task 2.2: Update Grant Schema
 - **RED**: Write test for grantSchema with optional description field
