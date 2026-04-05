@@ -43,10 +43,10 @@
 
 ## Phase 4: Admin Routes (Grants + Requests)
 
-### Task 4.1: Update Grants Routes
-- **RED**: Write test for grants routes with description field handling
-- **GREEN**: Update admin/routes/grants.ts to handle description
-- **REFACTOR**: Review response format
+### Task 4.1: Update Grants Routes ✅
+- **RED**: Write test for grants routes with description field handling ✅
+- **GREEN**: Update admin/routes/grants.ts to handle description ✅
+- **REFACTOR**: Review response format - Already handled by schema ✅
 
 ### Task 4.2: Update Requests Routes
 - **RED**: Write test for approval flow using authorization.grantApi.type.name
