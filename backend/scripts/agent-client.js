@@ -99,18 +99,58 @@ function parseArgs() {
     return options;
   }
   
-  if (command === 'request') {
+  if (command === 'list-grants') {
+    const options = {
+      command: 'list-grants',
+      type: args[1],
+      baseUrl: null,
+      host: process.env.AGENT_HOST || 'localhost',
+      port: process.env.AGENT_PORT || '9080',
+    };
+
+    // Find where flags start (either at index 2 if baseUrl is not a flag, or find first flag)
+    let flagStartIndex = 2;
+    if (args[2] && !args[2].startsWith('-')) {
+      options.baseUrl = args[2];
+      flagStartIndex = 3;
+    }
+
+    // Parse optional flags
+    for (let i = flagStartIndex; i < args.length; i++) {
+      switch (args[i]) {
+        case '--host':
+        case '-h':
+          options.host = args[++i];
+          break;
+        case '--port':
+        case '-p':
+          options.port = args[++i];
+          break;
+      }
+    }
+
+    if (!options.type) {
+      console.error('Error: type is required for list-grants command');
+      printHelp();
+      exit(2);
+    }
+
+    return options;
+  }
+
+   if (command === 'request') {
     const options = {
       command: 'request',
-      type: args[1],
-      realmSpec: args[2],
+      grantApiName: args[1],
+      key: args[2],
+      repositorySpec: args[3],
       host: process.env.AGENT_HOST || 'localhost',
       port: process.env.AGENT_PORT || '9080',
       timeout: parseInt(process.env.TIMEOUT || '300000'),
     };
-    
+
     // Parse optional flags
-    for (let i = 3; i < args.length; i++) {
+    for (let i = 4; i < args.length; i++) {
       switch (args[i]) {
         case '--host':
         case '-h':
@@ -126,13 +166,13 @@ function parseArgs() {
           break;
       }
     }
-    
-    if (!options.type || !options.realmSpec) {
-      console.error('Error: type and realm-spec are required for request command');
+
+    if (!options.grantApiName || !options.key || !options.repositorySpec) {
+      console.error('Error: grantApiName, key, and repository are required');
       printHelp();
       exit(2);
     }
-    
+
     return options;
   }
   
@@ -148,7 +188,8 @@ Agent Client - Authentication Agent
 Usage:
   agent-client init [options]                 Generate keypair and register agent
   agent-client register [options]             Register existing keypair with server
-  agent-client request <type> <realm-spec>    Send request and wait for approval
+  agent-client list-grants <type> [baseUrl]  List available GrantAPIs
+  agent-client request <grantApiName> <key> <repository[rw]>  Send request and wait for approval
 
 Commands:
   init [options]
@@ -171,17 +212,29 @@ Commands:
       -p, --port <port>      Agent server port (default: 8080)
       -n, --name <name>      Agent unique name (default: auto-generated)
 
-  request <type> <realm-spec> [options]
-    Connect via WebSocket, send REST request, wait for approval
+  list-grants <type> [baseUrl] [options]
+    List available GrantAPIs for a given type
 
     Arguments:
       type         Grant API type (e.g., github)
-      realm-spec   Realm specification in format: repo@baseUrl[r][w]
+      baseUrl      Optional base URL filter
+
+    Options:
+      -h, --host <host>      Server host (default: localhost)
+      -p, --port <port>      Server port (default: 9080)
+
+  request <grantApiName> <key> <repository[rw]> [options]
+    Connect via WebSocket, send REST request, wait for approval
+
+    Arguments:
+      grantApiName  Grant API name (e.g., github-main)
+      key           Service access key
+      repository    Repository with permissions: repo[rw]
                    Examples:
-                     myrepo@github.com        (read-only)
-                     myrepo@github.com[r]     (read-only)
-                     myrepo@github.com[w]     (write-only)
-                     myrepo@github.com[rw]    (read-write)
+                     myrepo        (read-only)
+                     myrepo[r]     (read-only)
+                     myrepo[w]     (write-only)
+                     myrepo[rw]    (read-write)
 
     Options:
       -h, --host <host>      Server host (default: localhost)
@@ -246,21 +299,20 @@ function loadKeys() {
   return { privateKey, publicKey, fingerprint };
 }
 
-// Parse realm spec: repo@baseUrl[r][w]
-function parseRealmSpec(spec) {
-  const match = spec.match(/^([^@]+)@([^\[]+)(?:\[([rw]+)\])?$/);
+// Parse repository spec: repo[r][w]
+function parseRepositorySpec(spec) {
+  const match = spec.match(/^([^\[]+)(?:\[([rw]+)\])?$/);
   if (!match) {
-    console.error(`Error: Invalid realm spec format: ${spec}`);
-    console.error(`Expected format: repo@baseUrl[rw]`);
+    console.error(`Error: Invalid repository spec format: ${spec}`);
+    console.error(`Expected format: repository[rw]`);
     exit(2);
   }
-  
-  const [, repository, baseUrl, permissions] = match;
+
+  const [, repository, permissions] = match;
   const perms = permissions || 'r';
-  
+
   return {
     repository,
-    baseUrl: baseUrl.startsWith('http') ? baseUrl : `https://${baseUrl}`,
     read: perms.includes('r') ? 1 : 0,
     write: perms.includes('w') ? 1 : 0
   };
@@ -382,18 +434,18 @@ async function cmdRegister(options) {
 // Send REST request to create authorization
 async function sendRestRequest(options, keys, requestId) {
   return new Promise((resolve, reject) => {
-    const realm = parseRealmSpec(options.realmSpec);
+    const realm = parseRepositorySpec(options.repositorySpec);
     const timestamp = Date.now();
     const body = {
-      codeAccessPublicKey: requestId,
+      serviceAccessKey: options.key,
       realm,
-      type: options.type
+      grantApi: options.grantApiName
     };
     const bodyString = JSON.stringify(body);
     const signature = signData(keys.privateKey, `${timestamp}${bodyString}`);
-    
+
     const requestData = JSON.stringify(body);
-    
+
     const reqOptions = {
       hostname: options.host,
       port: options.port,
@@ -406,8 +458,8 @@ async function sendRestRequest(options, keys, requestId) {
         'x-fingerprint': keys.fingerprint
       }
     };
-    
-    console.log(`Sending REST request: ${options.type} ${options.realmSpec}`);
+
+    console.log(`Sending REST request: ${options.grantApiName} ${options.repositorySpec}`);
     
     const req = http.request(reqOptions, (res) => {
       let data = '';
@@ -429,6 +481,73 @@ async function sendRestRequest(options, keys, requestId) {
     
     req.on('error', reject);
     req.write(requestData);
+    req.end();
+  });
+}
+
+// List grants command: HTTP GET to /api/grant-apis
+async function cmdListGrants(options) {
+  const queryParams = new URLSearchParams();
+  queryParams.append('type', options.type);
+  if (options.baseUrl) {
+    queryParams.append('baseUrl', options.baseUrl);
+  }
+
+  const queryString = queryParams.toString();
+  const path = `/api/grant-apis${queryString ? '?' + queryString : ''}`;
+
+  return new Promise((resolve, reject) => {
+    const reqOptions = {
+      hostname: options.host,
+      port: options.port,
+      path: path,
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    };
+
+    console.log(`Fetching GrantAPIs: type=${options.type}${options.baseUrl ? ', baseUrl=' + options.baseUrl : ''}`);
+
+    const req = http.request(reqOptions, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const response = JSON.parse(data);
+          if (res.statusCode === 200) {
+            if (Array.isArray(response) && response.length === 0) {
+              console.log('No GrantAPIs found matching the criteria.');
+            } else {
+              console.log(`Found ${response.length} GrantAPI(s):`);
+              response.forEach((grant, index) => {
+                console.log(`\n  [${index + 1}] ${grant.name}`);
+                console.log(`      ID:          ${grant.id}`);
+                console.log(`      Type:        ${grant.type}`);
+                console.log(`      Base URL:    ${grant.baseURL}`);
+                if (grant.description) {
+                  console.log(`      Description: ${grant.description}`);
+                }
+              });
+            }
+            resolve(response);
+          } else {
+            const errorMsg = response.error || `HTTP ${res.statusCode}: ${data}`;
+            console.error(`Error: ${errorMsg}`);
+            reject(new Error(errorMsg));
+          }
+        } catch (e) {
+          const errorMsg = `Invalid response: ${data}`;
+          console.error(`Error: ${errorMsg}`);
+          reject(new Error(errorMsg));
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      console.error(`Error: Failed to connect to server: ${err.message}`);
+      reject(err);
+    });
     req.end();
   });
 }
@@ -582,13 +701,23 @@ async function main() {
     await cmdInit(options);
   } else if (options.command === 'register') {
     await cmdRegister(options);
+  } else if (options.command === 'list-grants') {
+    await cmdListGrants(options);
   } else if (options.command === 'request') {
     await cmdRequest(options);
   }
 }
 
 // Run main
-main().catch((error) => {
-  console.error('Fatal error:', error);
-  exit(2);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('Fatal error:', error);
+    exit(2);
+  });
+}
+
+// Export functions for testing
+module.exports = {
+  parseArgs,
+  cmdListGrants
+};
