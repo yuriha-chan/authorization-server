@@ -31,10 +31,10 @@
 
 ## Phase 3: Agent Server (New Endpoint + Modified Handler)
 
-### Task 3.1: Add List GrantAPIs Endpoint
-- **RED**: Write test for GET /api/grant-apis endpoint with type and baseUrl query parameters
-- **GREEN**: Implement endpoint in agent/server.ts
-- **REFACTOR**: Review query logic and response format
+### Task 3.1: Add List GrantAPIs Endpoint ✅
+- **RED**: Write test for GET /api/grant-apis endpoint with type and baseUrl query parameters ✅
+- **GREEN**: Implement endpoint in agent/server.ts ✅
+- **REFACTOR**: Review query logic and response format - Add state field to grantSchema ✅
 
 ### Task 3.2: Update Request Access Endpoint
 - **RED**: Write test for updated POST /api/request-access with new format
