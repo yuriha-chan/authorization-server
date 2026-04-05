@@ -7,10 +7,10 @@
 - **GREEN**: Update GrantAPI.ts to add description column and enforce name uniqueness ✅
 - **REFACTOR**: Review entity structure and relationships (no refactoring needed) ✅
 
-### Task 1.2: Update Authorization Entity
-- **RED**: Write test for Authorization entity with grantApi relationship instead of type string
-- **GREEN**: Update Authorization.ts to replace type string with grantApi ManyToOne relationship
-- **REFACTOR**: Review realm type changes (remove baseUrl)
+### Task 1.2: Update Authorization Entity ✅
+- **RED**: Write test for Authorization entity with grantApi relationship instead of type string ✅
+- **GREEN**: Update Authorization.ts to replace type string with grantApi ManyToOne relationship ✅
+- **REFACTOR**: Review realm type changes (remove baseUrl) - Added index and documentation ✅
 
 ### Task 1.3: Generate Migration
 - **RED**: N/A (migration generation)
