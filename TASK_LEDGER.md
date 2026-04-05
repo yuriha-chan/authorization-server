@@ -2,10 +2,10 @@
 
 ## Phase 1: Database Schema (Foundation)
 
-### Task 1.1: Update GrantAPI Entity
-- **RED**: Write test for GrantAPI entity with description field and unique name constraint
-- **GREEN**: Update GrantAPI.ts to add description column and enforce name uniqueness
-- **REFACTOR**: Review entity structure and relationships
+### Task 1.1: Update GrantAPI Entity ✅
+- **RED**: Write test for GrantAPI entity with description field and unique name constraint ✅
+- **GREEN**: Update GrantAPI.ts to add description column and enforce name uniqueness ✅
+- **REFACTOR**: Review entity structure and relationships (no refactoring needed) ✅
 
 ### Task 1.2: Update Authorization Entity
 - **RED**: Write test for Authorization entity with grantApi relationship instead of type string
