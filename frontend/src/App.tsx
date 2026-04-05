@@ -1,6 +1,6 @@
 /** @format */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { ChakraProvider, Box, Flex, VStack, HStack, Text, Spinner, Center, Dialog, Field, Input, Button } from '@chakra-ui/react';
 import { useDisclosure } from '@chakra-ui/react';
@@ -39,9 +39,12 @@ import type {
   Overview,
   EventLog as EventLogType,
   NavId,
-  WebSocketMessage,
 } from './types';
 import { useColorModeValue } from './hooks/useColorMode';
+import { WebSocketClient } from './websocket-client';
+
+const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/admin/ws`;
+const wsClient = new WebSocketClient(wsUrl);
 
 function Dashboard() {
   const [nav, setNav] = useState<NavId>('overview');
@@ -104,255 +107,241 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+    wsClient.connect();
+  }, []);
 
-    const connect = () => {
-      ws = new WebSocket(
-        `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/admin/ws`
-      );
+  const hasLoadedOnMount = useRef(false);
 
-      ws.onopen = () => {
-        loadData();
-        heartbeatInterval = setInterval(() => {
-          if (ws?.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
-          }
-        }, 5000);
-      };
+  useEffect(() => {
+    const unsubscribeConnect = wsClient.onConnect(() => {
+      loadData();
+    });
 
-      ws.onmessage = (event) => {
-        const msg: WebSocketMessage = JSON.parse(event.data);
-        if (msg.data?.id && processedIds.has(msg.data.id)) {
-          return;
-        }
-        const now = new Date().toISOString();
-        if (msg.data?.id) {
-          setProcessedIds((prev) => new Set([...prev, msg.data.id!]));
-        }
+    // If connection is already open when component mounts, load data once
+    if (!hasLoadedOnMount.current && wsClient.isReady) {
+      hasLoadedOnMount.current = true;
+      loadData();
+    }
 
-        switch (msg.type) {
-          case 'new_pending_request':
-            setPending((prev) => [
-              ...prev,
-              {
-                id: msg.data.requestId!,
-                state: 'pending',
-                createdAt: new Date(msg.data.timestamp || Date.now()).toISOString(),
-                authorization: {
-                  type: msg.data.type || '',
-                  realm: msg.data.realm || { repository: '', baseUrl: '' },
-                  container: {
-                    id: msg.data.containerId || '',
-                    uniqueName: msg.data.agentUniqueName || '',
-                    fingerprint: msg.data.fingerprint || '',
-                  },
-                },
-              },
-            ]);
-            setEventLogs((prev) =>
-              [
-                {
-                  id: msg.data.id || '',
-                  timestamp: now,
-                  type: msg.type,
-                  message: '',
-                  data: msg.data,
-                },
-                ...prev,
-              ].slice(0, 100)
-            );
-            break;
-          case 'request_approved':
-            setPending((prev) => prev.filter((p) => p.id !== msg.data.requestId));
-            setEventLogs((prev) =>
-              [
-                {
-                  id: msg.data.id || '',
-                  timestamp: now,
-                  type: msg.type,
-                  message: '',
-                  data: msg.data,
-                },
-                ...prev,
-              ].slice(0, 100)
-            );
-            break;
-          case 'request_denied':
-            setPending((prev) => prev.filter((p) => p.id !== msg.data.requestId));
-            setEventLogs((prev) =>
-              [
-                {
-                  id: msg.data.id || '',
-                  timestamp: now,
-                  type: msg.type,
-                  message: '',
-                  data: msg.data,
-                },
-                ...prev,
-              ].slice(0, 100)
-            );
-            break;
-          case 'agent_registered':
-            setAgents((prev) => [
-              ...prev,
-              {
-                id: msg.data.agentId || '',
-                uniqueName: msg.data.uniqueName || '',
-                fingerprint: msg.data.fingerprint || '',
-                state: 'active',
-              },
-            ]);
-            setEventLogs((prev) =>
-              [
-                {
-                  id: msg.data.id || '',
-                  timestamp: now,
-                  type: msg.type,
-                  message: `Agent "${msg.data.uniqueName}" registered`,
-                  data: msg.data,
-                },
-                ...prev,
-              ].slice(0, 100)
-            );
-            break;
-          case 'agent_updated':
-            if (msg.data.action === 'create' || msg.data.action === 'update') {
-              setAgents((prev) => {
-                const exists = prev.find((a) => a.id === msg.data.agent?.id);
-                if (exists) {
-                  return prev.map((a) =>
-                    a.id === msg.data.agent?.id ? msg.data.agent! : a
-                  );
-                }
-                return [...prev, msg.data.agent!];
-              });
-            } else if (msg.data.action === 'delete') {
-              setAgents((prev) =>
-                prev.filter((a) => a.id !== msg.data.agent?.id)
-              );
-            }
-            setEventLogs((prev) =>
-              [
-                {
-                  id: msg.data.id || '',
-                  timestamp: now,
-                  type: msg.type,
-                  message: '',
-                  data: msg.data,
-                },
-                ...prev,
-              ].slice(0, 100)
-            );
-            break;
-          case 'grant_api_updated':
-            if (msg.data.action === 'create' || msg.data.action === 'update') {
-              setGrants((prev) => {
-                const exists = prev.find((g) => g.id === msg.data.grantApi?.id);
-                if (exists) {
-                  return prev.map((g) =>
-                    g.id === msg.data.grantApi?.id ? msg.data.grantApi! : g
-                  );
-                }
-                return [...prev, msg.data.grantApi!];
-              });
-            } else if (msg.data.action === 'delete') {
-              setGrants((prev) =>
-                prev.filter((g) => g.id !== msg.data.grantApi?.id)
-              );
-            }
-            setEventLogs((prev) =>
-              [
-                {
-                  id: msg.data.id || '',
-                  timestamp: now,
-                  type: msg.type,
-                  message: `Grant API ${msg.data.action}: ${msg.data.grantApi?.name}`,
-                  data: msg.data,
-                },
-                ...prev,
-              ].slice(0, 100)
-            );
-            break;
-          case 'notification_api_updated':
-            if (msg.data.action === 'create' || msg.data.action === 'update') {
-              setNotifs((prev) => {
-                const exists = prev.find(
-                  (n) => n.id === msg.data.notificationApi?.id
-                );
-                if (exists) {
-                  return prev.map((n) =>
-                    n.id === msg.data.notificationApi?.id
-                      ? msg.data.notificationApi!
-                      : n
-                  );
-                }
-                return [...prev, msg.data.notificationApi!];
-              });
-            } else if (msg.data.action === 'delete') {
-              setNotifs((prev) =>
-                prev.filter((n) => n.id !== msg.data.notificationApi?.id)
-              );
-            }
-            setEventLogs((prev) =>
-              [
-                {
-                  id: msg.data.id || '',
-                  timestamp: now,
-                  type: msg.type,
-                  message: '',
-                  data: msg.data,
-                },
-                ...prev,
-              ].slice(0, 100)
-            );
-            break;
-          case 'authorization_revoked':
-            setEventLogs((prev) =>
-              [
-                {
-                  id: msg.data.id || '',
-                  timestamp: now,
-                  type: msg.type,
-                  message: '',
-                  data: msg.data,
-                },
-                ...prev,
-              ].slice(0, 100)
-            );
-            break;
-          case 'notification_delivery_failed':
-            setEventLogs((prev) =>
-              [
-                {
-                  id: msg.data.id || '',
-                  timestamp: now,
-                  type: msg.type,
-                  message: '',
-                  data: msg.data,
-                },
-                ...prev,
-              ].slice(0, 100)
-            );
-            break;
-        }
-      };
-
-      ws.onerror = () => console.error('WebSocket error');
-      ws.onclose = () => {
-        if (heartbeatInterval) {
-          clearInterval(heartbeatInterval);
-        }
-        setTimeout(connect, 3000);
-      };
-    };
-
-    connect();
-    return () => {
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
+    const unsubscribeMessage = wsClient.onMessage((msg) => {
+      if (msg.data?.id && processedIds.has(msg.data.id)) {
+        return;
       }
-      ws?.close();
+      const now = new Date().toISOString();
+      if (msg.data?.id) {
+        setProcessedIds((prev) => new Set([...prev, msg.data.id!]));
+      }
+
+      switch (msg.type) {
+        case 'new_pending_request':
+          setPending((prev) => [
+            ...prev,
+            {
+              id: msg.data.requestId!,
+              state: 'pending',
+              createdAt: new Date(msg.data.timestamp || Date.now()).toISOString(),
+              authorization: {
+                type: msg.data.type || '',
+                realm: msg.data.realm || { repository: '', baseUrl: '' },
+                container: {
+                  id: msg.data.containerId || '',
+                  uniqueName: msg.data.agentUniqueName || '',
+                  fingerprint: msg.data.fingerprint || '',
+                },
+              },
+            },
+          ]);
+          setEventLogs((prev) =>
+            [
+              {
+                id: msg.data.id || '',
+                timestamp: now,
+                type: msg.type,
+                message: '',
+                data: msg.data,
+              },
+              ...prev,
+            ].slice(0, 100)
+          );
+          break;
+        case 'request_approved':
+          setPending((prev) => prev.filter((p) => p.id !== msg.data.requestId));
+          setEventLogs((prev) =>
+            [
+              {
+                id: msg.data.id || '',
+                timestamp: now,
+                type: msg.type,
+                message: '',
+                data: msg.data,
+              },
+              ...prev,
+            ].slice(0, 100)
+          );
+          break;
+        case 'request_denied':
+          setPending((prev) => prev.filter((p) => p.id !== msg.data.requestId));
+          setEventLogs((prev) =>
+            [
+              {
+                id: msg.data.id || '',
+                timestamp: now,
+                type: msg.type,
+                message: '',
+                data: msg.data,
+              },
+              ...prev,
+            ].slice(0, 100)
+          );
+          break;
+        case 'agent_registered':
+          setAgents((prev) => [
+            ...prev,
+            {
+              id: msg.data.agentId || '',
+              uniqueName: msg.data.uniqueName || '',
+              fingerprint: msg.data.fingerprint || '',
+              state: 'active',
+            },
+          ]);
+          setEventLogs((prev) =>
+            [
+              {
+                id: msg.data.id || '',
+                timestamp: now,
+                type: msg.type,
+                message: `Agent "${msg.data.uniqueName}" registered`,
+                data: msg.data,
+              },
+              ...prev,
+            ].slice(0, 100)
+          );
+          break;
+        case 'agent_updated':
+          if (msg.data.action === 'create' || msg.data.action === 'update') {
+            setAgents((prev) => {
+              const exists = prev.find((a) => a.id === msg.data.agent?.id);
+              if (exists) {
+                return prev.map((a) =>
+                  a.id === msg.data.agent?.id ? msg.data.agent! : a
+                );
+              }
+              return [...prev, msg.data.agent!];
+            });
+          } else if (msg.data.action === 'delete') {
+            setAgents((prev) =>
+              prev.filter((a) => a.id !== msg.data.agent?.id)
+            );
+          }
+          setEventLogs((prev) =>
+            [
+              {
+                id: msg.data.id || '',
+                timestamp: now,
+                type: msg.type,
+                message: '',
+                data: msg.data,
+              },
+              ...prev,
+            ].slice(0, 100)
+          );
+          break;
+        case 'grant_api_updated':
+          if (msg.data.action === 'create' || msg.data.action === 'update') {
+            setGrants((prev) => {
+              const exists = prev.find((g) => g.id === msg.data.grantApi?.id);
+              if (exists) {
+                return prev.map((g) =>
+                  g.id === msg.data.grantApi?.id ? msg.data.grantApi! : g
+                );
+              }
+              return [...prev, msg.data.grantApi!];
+            });
+          } else if (msg.data.action === 'delete') {
+            setGrants((prev) =>
+              prev.filter((g) => g.id !== msg.data.grantApi?.id)
+            );
+          }
+          setEventLogs((prev) =>
+            [
+              {
+                id: msg.data.id || '',
+                timestamp: now,
+                type: msg.type,
+                message: `Grant API ${msg.data.action}: ${msg.data.grantApi?.name}`,
+                data: msg.data,
+              },
+              ...prev,
+            ].slice(0, 100)
+          );
+          break;
+        case 'notification_api_updated':
+          if (msg.data.action === 'create' || msg.data.action === 'update') {
+            setNotifs((prev) => {
+              const exists = prev.find(
+                (n) => n.id === msg.data.notificationApi?.id
+              );
+              if (exists) {
+                return prev.map((n) =>
+                  n.id === msg.data.notificationApi?.id
+                    ? msg.data.notificationApi!
+                    : n
+                );
+              }
+              return [...prev, msg.data.notificationApi!];
+            });
+          } else if (msg.data.action === 'delete') {
+            setNotifs((prev) =>
+              prev.filter((n) => n.id !== msg.data.notificationApi?.id)
+            );
+          }
+          setEventLogs((prev) =>
+            [
+              {
+                id: msg.data.id || '',
+                timestamp: now,
+                type: msg.type,
+                message: '',
+                data: msg.data,
+              },
+              ...prev,
+            ].slice(0, 100)
+          );
+          break;
+        case 'authorization_revoked':
+          setEventLogs((prev) =>
+            [
+              {
+                id: msg.data.id || '',
+                timestamp: now,
+                type: msg.type,
+                message: '',
+                data: msg.data,
+              },
+              ...prev,
+            ].slice(0, 100)
+          );
+          break;
+        case 'notification_delivery_failed':
+          setEventLogs((prev) =>
+            [
+              {
+                id: msg.data.id || '',
+                timestamp: now,
+                type: msg.type,
+                message: '',
+                data: msg.data,
+              },
+              ...prev,
+            ].slice(0, 100)
+          );
+          break;
+      }
+    });
+
+    return () => {
+      unsubscribeConnect();
+      unsubscribeMessage();
     };
   }, [loadData, processedIds]);
 
