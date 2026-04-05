@@ -36,9 +36,9 @@
 - **GREEN**: Implement endpoint in agent/server.ts ✅
 - **REFACTOR**: Review query logic and response format - Add state field to grantSchema ✅
 
-### Task 3.2: Update Request Access Endpoint
-- **RED**: Write test for updated POST /api/request-access with new format
-- **GREEN**: Update request-access handler to accept grantApi name and serviceAccessKey
+### Task 3.2: Update Request Access Endpoint ✅
+- **RED**: Write test for updated POST /api/request-access with new format ✅
+- **GREEN**: Update request-access handler to accept grantApi name and serviceAccessKey ✅
 - **REFACTOR**: Review authorization creation logic
 
 ## Phase 4: Admin Routes (Grants + Requests)
