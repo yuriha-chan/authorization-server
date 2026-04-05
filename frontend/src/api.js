@@ -36,6 +36,7 @@ export const api = {
 
   getWebSocketStats: () => fetchAPI('/websocket/stats'),
 
+  getAuthorizations: () => fetchAPI('/authorizations'),
   getAuthorization: (id) => fetchAPI(`/authorizations/${id}`),
   updateAuthorization: (id, data) => fetchAPI(`/authorizations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   approveAuthRequest: (id, revokeTime) => fetchAPI(`/authorizations/${id}/approve`, { method: 'POST', body: JSON.stringify({ revokeTime }) }),

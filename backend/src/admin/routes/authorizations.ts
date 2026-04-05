@@ -6,6 +6,19 @@ import { AuthorizationRequest } from '../../entities/AuthorizationRequest';
 
 export const authorizationsRouter = Router();
 
+authorizationsRouter.get('/', async (req, res) => {
+  try {
+    const repo = AppDataSource.getRepository(Authorization);
+    const authorizations = await repo.find({
+      relations: ['container'],
+      order: { createdAt: 'DESC' }
+    });
+    res.json(authorizations);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch authorizations' });
+  }
+});
+
 authorizationsRouter.get('/:id', async (req, res) => {
   try {
     const repo = AppDataSource.getRepository(Authorization);

@@ -38,6 +38,16 @@ export function AuthorizationDetail() {
     }
   };
 
+  const handleRevoke = async () => {
+    if (!confirm('Are you sure you want to revoke this authorization?')) return;
+    try {
+      await api.updateAuthorization(id, { state: 'revoked' });
+      loadAuthorization();
+    } catch (err) {
+      alert('Failed to revoke authorization: ' + err.message);
+    }
+  };
+
   if (loading) {
     return (
       <Center h="50vh">
@@ -69,7 +79,14 @@ export function AuthorizationDetail() {
             </HStack>
             <Heading size="lg" fontFamily="mono">Authorization Detail</Heading>
           </VStack>
-          <StateBadge state={auth.state} size="lg" />
+          <HStack gap={2}>
+            <StateBadge state={auth.state} size="lg" />
+            {auth.state === 'active' && (
+              <Button colorScheme="red" variant="outline" size="sm" onClick={handleRevoke}>
+                Revoke
+              </Button>
+            )}
+          </HStack>
         </HStack>
 
         <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={6}>
