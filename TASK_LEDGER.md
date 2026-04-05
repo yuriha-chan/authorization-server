@@ -48,10 +48,10 @@
 - **GREEN**: Update admin/routes/grants.ts to handle description ✅
 - **REFACTOR**: Review response format - Already handled by schema ✅
 
-### Task 4.2: Update Requests Routes
-- **RED**: Write test for approval flow using authorization.grantApi.type.name
-- **GREEN**: Update admin/routes/requests.ts approval handler
-- **REFACTOR**: Review operation execution logic
+### Task 4.2: Update Requests Routes ✅
+- **RED**: Write test for approval flow using authorization.grantApi.type.name ✅
+- **GREEN**: Update admin/routes/requests.ts approval handler ✅
+- **REFACTOR**: Review operation execution logic - Already updated ✅
 
 ## Phase 5: Agent Client Script
 
