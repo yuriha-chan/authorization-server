@@ -1,13 +1,15 @@
 // src/entities/GrantAPI.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { GrantApiType } from './GrantApiType';
 
 @Entity('grant_apis')
 export class GrantAPI {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
-  type: string; // 'github', 'gitlab', etc.
+  @ManyToOne(() => GrantApiType, { eager: true })
+  @JoinColumn({ name: 'type', referencedColumnName: 'name' })
+  type: GrantApiType;
 
   @Column()
   baseURL: string;

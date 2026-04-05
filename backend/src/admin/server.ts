@@ -5,6 +5,7 @@ import { Server as HttpServer } from 'http';
 import { AdminWebSocket } from '../websocket/admin';
 import { agentsRouter } from './routes/agents';
 import { grantsRouter } from './routes/grants';
+import { grantTypesRouter } from './routes/grant-types';
 import { notificationsRouter } from './routes/notifications';
 import { requestsRouter } from './routes/requests';
 import { authorizationsRouter } from './routes/authorizations';
@@ -59,6 +60,7 @@ app.get('/api/overview', async (req, res) => {
 
 app.use('/api/agents', agentsRouter);
 app.use('/api/grants', grantsRouter);
+app.use('/api/grant-types', grantTypesRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/requests', requestsRouter);
 app.use('/api/authorizations', authorizationsRouter);

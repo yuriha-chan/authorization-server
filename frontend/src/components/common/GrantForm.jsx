@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { VStack, HStack, Button, Input } from "@chakra-ui/react";
 import { Field } from "@chakra-ui/react";
+import { NativeSelect } from "@chakra-ui/react";
 import { labelText } from "./Styles";
 
-export const GrantForm = ({ initial, onSave, onCancel }) => {
+export const GrantForm = ({ initial, grantTypes = [], onSave, onCancel }) => {
   const [form, setForm] = useState(
     initial || {
       name: "",
-      type: "github",
+      type: grantTypes[0]?.name || "github",
       baseURL: "",
       account: "",
       secret: "",
@@ -28,7 +29,19 @@ export const GrantForm = ({ initial, onSave, onCancel }) => {
       </Field.Root>
       <Field.Root>
         <Field.Label sx={labelText}>Type</Field.Label>
-        <Input value={form.type} readOnly fontFamily="mono" color="gray.400" />
+        <NativeSelect.Root>
+          <NativeSelect.Field
+            value={form.type?.name || form.type}
+            onChange={(e) => f("type")(e.target.value)}
+            fontFamily="mono"
+          >
+            {grantTypes.map((type) => (
+              <option key={type.name} value={type.name}>
+                {type.name}
+              </option>
+            ))}
+          </NativeSelect.Field>
+        </NativeSelect.Root>
       </Field.Root>
       <Field.Root>
         <Field.Label sx={labelText}>Base URL</Field.Label>

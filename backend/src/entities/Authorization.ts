@@ -27,6 +27,12 @@ export class Authorization {
   @Column({ default: 'active' })
   state: string;
 
+  @Column({ nullable: true })
+  token: string;
+
+  @Column({ type: 'json', nullable: true })
+  metadata: Record<string, any>;
+
   @ManyToOne(() => AgentContainer, container => container.authorizations)
   container: AgentContainer;
 

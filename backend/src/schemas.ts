@@ -38,8 +38,16 @@ export const approveRequestSchema = z.object({
   revokeTime: z.number().optional(),
 });
 
+export const grantApiTypeSchema = z.object({
+  name: z.string().min(1).max(100),
+  grantCode: z.string().min(1),
+  revokeCode: z.string().min(1),
+  getStatusCode: z.string().min(1),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type RequestInput = z.infer<typeof requestSchema>;
 export type GrantInput = z.infer<typeof grantSchema>;
 export type NotificationInput = z.infer<typeof notificationSchema>;
 export type ApproveRequestInput = z.infer<typeof approveRequestSchema>;
+export type GrantApiTypeInput = z.infer<typeof grantApiTypeSchema>;

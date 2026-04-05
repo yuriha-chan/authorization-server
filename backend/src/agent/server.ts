@@ -169,9 +169,27 @@ app.post('/api/request-access', verifySignature, async (req, res) => {
 });
 
 // Redisイベントリスナー（Agentへの通知）
+eventBus.subscribe('request:approved', async (data) => {
+  // Forward to agent WebSocket
+  agentWebSocket.sendToAgent(data.fingerprint, 'authorization_granted', {
+    requestId: data.requestId,
+    authorizationId: data.authorizationId,
+    grantedKey: data.grantedKey,
+    expiresAt: data.expiresAt,
+    realm: data.realm,
+    grantResult: data.grantResult
+  });
+});
+
+eventBus.subscribe('request:denied', async (data) => {
+  // Forward to agent WebSocket
+  agentWebSocket.sendToAgent(data.fingerprint, 'authorization_denied', {
+    requestId: data.requestId,
+    reason: data.reason
+  });
+});
+
 eventBus.subscribe('authorization:granted', async (data) => {
-  // AgentへのWebSocket接続があれば通知
-  // 今回はHTTPでのポーリングを想定しているため、ステータス更新のみ
   console.log('Authorization granted:', data);
 });
 

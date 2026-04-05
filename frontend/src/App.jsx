@@ -14,6 +14,7 @@ import { Toaster, toaster } from "./components/ui/toaster";
 import { ContainerDetail } from "./pages/ContainerDetail";
 import { AuthorizationDetail } from "./pages/AuthorizationDetail";
 import { GrantDetail } from "./pages/GrantDetail";
+import { GrantTypeDetail } from "./pages/GrantTypeDetail";
 import {
   StateBadge,
   TypeBadge,
@@ -102,6 +103,7 @@ const NAV = [
   { id: "agents", label: "Agent Containers", icon: "◻" },
   { id: "authorizations", label: "Authorizations", icon: "◉" },
   { id: "grants", label: "Grant APIs", icon: "◆" },
+  { id: "grant-types", label: "Grant API Types", icon: "◈" },
   { id: "notifications", label: "Notification APIs", icon: "◇" },
 ];
 
@@ -408,7 +410,7 @@ const AgentsPanel = ({ agents, onDelete, onViewAuths }) => {
   );
 };
 
-const GrantsPanel = ({ grants, onAdd, onEdit, onDelete }) => {
+const GrantsPanel = ({ grants, grantTypes, onAdd, onEdit, onDelete }) => {
   const { open, onOpen, onClose } = useDisclosure();
   const [editing, setEditing] = useState(null);
   const bg = useColorModeValue("white", "surface.800");
@@ -446,7 +448,11 @@ const GrantsPanel = ({ grants, onAdd, onEdit, onDelete }) => {
                     <Text fontSize="12px" fontFamily="mono" fontWeight="600" color="brand.500" _hover={{ textDecoration: 'underline' }}>{g.name}</Text>
                   </RouterLink>
                 </Table.Cell>
-                <Table.Cell><Badge colorPalette="blue" fontFamily="mono" fontSize="9px">{g.type}</Badge></Table.Cell>
+                <Table.Cell>
+                  <RouterLink to={`/grantapis/${g.type?.name || g.type}`}>
+                    <Badge colorPalette="blue" fontFamily="mono" fontSize="9px" _hover={{ cursor: 'pointer' }}>{g.type?.name || g.type}</Badge>
+                  </RouterLink>
+                </Table.Cell>
                 <Table.Cell><Text fontSize="11px" fontFamily="mono" color="gray.400" truncate maxWidth="180px">{g.baseURL}</Text></Table.Cell>
                 <Table.Cell><Text fontSize="12px" fontFamily="mono">{g.account}</Text></Table.Cell>
                 <Table.Cell><Text fontSize="12px" fontFamily="mono" color="brand.400">{g.defaultRevokeTime}</Text></Table.Cell>
@@ -474,7 +480,7 @@ const GrantsPanel = ({ grants, onAdd, onEdit, onDelete }) => {
             </Dialog.Header>
             <Dialog.CloseTrigger />
             <Dialog.Body>
-              <GrantForm initial={editing} onSave={(f) => { editing ? onEdit({ ...editing, ...f }) : onAdd(f); onClose(); }} onCancel={onClose} />
+              <GrantForm initial={editing} grantTypes={grantTypes} onSave={(f) => { editing ? onEdit({ ...editing, ...f }) : onAdd(f); onClose(); }} onCancel={onClose} />
             </Dialog.Body>
           </Dialog.Content>
         </Dialog.Positioner>
@@ -951,6 +957,7 @@ function Dashboard() {
   const [nav, setNav] = useState("overview");
   const [agents, setAgents] = useState([]);
   const [grants, setGrants] = useState([]);
+  const [grantTypes, setGrantTypes] = useState([]);
   const [notifs, setNotifs] = useState([]);
   const [pending, setPending] = useState([]);
   const [authorizations, setAuthorizations] = useState([]);
@@ -965,9 +972,10 @@ function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [agentsData, grantsData, notifsData, pendingData, statusData, logsData, overviewData, authsData] = await Promise.all([
+      const [agentsData, grantsData, grantTypesData, notifsData, pendingData, statusData, logsData, overviewData, authsData] = await Promise.all([
         api.getAgents().catch(() => []),
         api.getGrants().catch(() => []),
+        api.getGrantTypes().catch(() => []),
         api.getNotifications().catch(() => []),
         api.getPendingRequests().catch(() => []),
         api.getStatus().catch(() => ({})),
@@ -977,6 +985,7 @@ function Dashboard() {
       ]);
       setAgents(agentsData);
       setGrants(grantsData);
+      setGrantTypes(grantTypesData);
       setAuthorizations(authsData);
       setNotifs(notifsData);
       setPending(pendingData);
@@ -1195,6 +1204,33 @@ function Dashboard() {
       notify("Error", err.message, "error");
     }
   };
+  const handleDeleteGrantType = async (name) => {
+    try {
+      await api.deleteGrantType(name);
+      setGrantTypes((t) => t.filter((x) => x.name !== name));
+      notify("Deleted", "Grant API type removed", "info");
+    } catch (err) {
+      notify("Error", err.message, "error");
+    }
+  };
+  const handleAddGrantType = async (f) => {
+    try {
+      await api.createGrantType(f);
+      notify("Added", "Grant API type created", "success");
+      loadData();
+    } catch (err) {
+      notify("Error", err.message, "error");
+    }
+  };
+  const handleEditGrantType = async (f) => {
+    try {
+      await api.updateGrantType(f.name, f);
+      notify("Updated", "Grant API type updated", "success");
+      loadData();
+    } catch (err) {
+      notify("Error", err.message, "error");
+    }
+  };
   const handleAddGrant = async (f) => {
     try {
       await api.createGrant(f);
@@ -1250,12 +1286,113 @@ function Dashboard() {
     }
   };
 
+  const GrantTypesPanel = ({ types, onAdd, onEdit, onDelete }) => {
+    const { open, onOpen, onClose } = useDisclosure();
+    const [editing, setEditing] = useState(null);
+    const bg = useColorModeValue("white", "surface.800");
+    const border = useColorModeValue("gray.200", "surface.600");
+    const hdr = useColorModeValue("gray.50", "surface.700");
+    const textColor = useColorModeValue("gray.800", "gray.100");
+    const hoverBg = useColorModeValue("gray.50", "surface.700");
+
+    const handleOpen = (t = null) => { setEditing(t); onOpen(); };
+
+    return (
+      <VStack gap={4} align="stretch">
+        <HStack justify="space-between">
+          <Heading size="md" fontFamily="mono" letterSpacing="0.06em" color={textColor}>Grant API Types</Heading>
+          <Button size="sm" colorPalette="brand" onClick={() => handleOpen()} fontFamily="mono">+ New Type</Button>
+        </HStack>
+        <Box bg={bg} border="1px solid" borderColor={border} borderRadius="10px" overflow="hidden">
+          <Table.Root size="sm">
+            <Table.Header bg={hdr}>
+              <Table.Row>
+                <Table.ColumnHeader fontFamily="mono" fontSize="10px" letterSpacing="0.12em" textTransform="uppercase" color="gray.400" py={3}>Name</Table.ColumnHeader>
+                <Table.ColumnHeader fontFamily="mono" fontSize="10px" letterSpacing="0.12em" textTransform="uppercase" color="gray.400" py={3}>Grant Code</Table.ColumnHeader>
+                <Table.ColumnHeader fontFamily="mono" fontSize="10px" letterSpacing="0.12em" textTransform="uppercase" color="gray.400" py={3}>Revoke Code</Table.ColumnHeader>
+                <Table.ColumnHeader fontFamily="mono" fontSize="10px" letterSpacing="0.12em" textTransform="uppercase" color="gray.400" py={3}>Status Code</Table.ColumnHeader>
+                <Table.ColumnHeader></Table.ColumnHeader>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {types.map((t) => (
+                <Table.Row key={t.id} _hover={{ bg: hoverBg }} transition="background 0.1s">
+                  <Table.Cell>
+                    <RouterLink to={`/grantapis/${t.name}`}>
+                      <Text fontSize="12px" fontFamily="mono" fontWeight="600" color="brand.500" _hover={{ textDecoration: 'underline' }}>{t.name}</Text>
+                    </RouterLink>
+                  </Table.Cell>
+                  <Table.Cell><Text fontSize="11px" fontFamily="mono" color="gray.400" truncate maxWidth="120px">{t.grantCode?.substring(0, 30)}...</Text></Table.Cell>
+                  <Table.Cell><Text fontSize="11px" fontFamily="mono" color="gray.400" truncate maxWidth="120px">{t.revokeCode?.substring(0, 30)}...</Text></Table.Cell>
+                  <Table.Cell><Text fontSize="11px" fontFamily="mono" color="gray.400" truncate maxWidth="120px">{t.getStatusCode?.substring(0, 30)}...</Text></Table.Cell>
+                  <Table.Cell>
+                    <HStack gap={1} justify="flex-end">
+                      <Button size="xs" variant="ghost" onClick={() => handleOpen(t)} fontFamily="mono">Edit</Button>
+                      <IconButton size="xs" variant="ghost" colorPalette="red" onClick={() => onDelete(t.name)} aria-label="delete">
+                        <Text>✕</Text>
+                      </IconButton>
+                    </HStack>
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Root>
+        </Box>
+
+        <Dialog.Root open={open} onOpenChange={(e) => !e.open && onClose()} size="xl">
+          <Dialog.Backdrop bg="blackAlpha.700" backdropFilter="blur(4px)" />
+          <Dialog.Positioner>
+            <Dialog.Content bg={bg} border="1px solid" borderColor={border}>
+              <Dialog.Header fontFamily="mono" fontSize="sm" letterSpacing="0.08em">
+                {editing ? "Edit Grant API Type" : "Add Grant API Type"}
+              </Dialog.Header>
+              <Dialog.CloseTrigger />
+              <Dialog.Body>
+                <GrantTypeForm initial={editing} onSave={(f) => { editing ? onEdit({ ...editing, ...f }) : onAdd(f); onClose(); }} onCancel={onClose} />
+              </Dialog.Body>
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Dialog.Root>
+      </VStack>
+    );
+  };
+
+  const GrantTypeForm = ({ initial, onSave, onCancel }) => {
+    const [form, setForm] = useState(initial || { name: "", grantCode: "", revokeCode: "", getStatusCode: "" });
+    const f = (k) => (v) => setForm((p) => ({ ...p, [k]: v }));
+    return (
+      <VStack gap={4} align="stretch">
+        <Field.Root>
+          <Field.Label fontSize="11px" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase" color="gray.500">Name</Field.Label>
+          <Input value={form.name} onChange={e => f("name")(e.target.value)} placeholder="e.g., github" disabled={!!initial} />
+        </Field.Root>
+        <Field.Root>
+          <Field.Label fontSize="11px" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase" color="gray.500">Grant Code</Field.Label>
+          <Box as="textarea" value={form.grantCode} onChange={e => f("grantCode")(e.target.value)} placeholder="async function grant(secrets, account, realm) { ... }" rows={5} style={{ fontFamily: 'monospace', fontSize: '12px', padding: '8px', borderRadius: '4px', border: '1px solid', borderColor: 'inherit' }} />
+        </Field.Root>
+        <Field.Root>
+          <Field.Label fontSize="11px" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase" color="gray.500">Revoke Code</Field.Label>
+          <Box as="textarea" value={form.revokeCode} onChange={e => f("revokeCode")(e.target.value)} placeholder="async function revoke(secrets, account, token) { ... }" rows={5} style={{ fontFamily: 'monospace', fontSize: '12px', padding: '8px', borderRadius: '4px', border: '1px solid', borderColor: 'inherit' }} />
+        </Field.Root>
+        <Field.Root>
+          <Field.Label fontSize="11px" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase" color="gray.500">Status Code</Field.Label>
+          <Box as="textarea" value={form.getStatusCode} onChange={e => f("getStatusCode")(e.target.value)} placeholder="async function getStatus(secrets, account, token) { ... }" rows={5} style={{ fontFamily: 'monospace', fontSize: '12px', padding: '8px', borderRadius: '4px', border: '1px solid', borderColor: 'inherit' }} />
+        </Field.Root>
+        <HStack justify="flex-end" gap={2} pt={2}>
+          <Button size="sm" variant="ghost" onClick={onCancel} fontFamily="mono">Cancel</Button>
+          <Button size="sm" colorPalette="brand" onClick={() => onSave(form)} fontFamily="mono">Save</Button>
+        </HStack>
+      </VStack>
+    );
+  };
+
   const panels = {
     overview: <OverviewPanel status={status || { version: "Loading...", agents: 0, pendingRequests: 0, activeAuthorizations: 0, uptime: "..." }} pending={pending} agents={agents} overview={overview} onNav={setNav} />,
     requests: <PendingPanel requests={pending} onApprove={handleApprove} onDeny={handleDeny} />,
     agents: <AgentsPanel agents={agents} onDelete={handleDeleteAgent} onViewAuths={handleViewAuths} />,
     authorizations: <AuthorizationsPanel authorizations={authorizations} />,
-    grants: <GrantsPanel grants={grants} onAdd={handleAddGrant} onEdit={handleEditGrant} onDelete={handleDeleteGrant} />,
+    grants: <GrantsPanel grants={grants} grantTypes={grantTypes} onAdd={handleAddGrant} onEdit={handleEditGrant} onDelete={handleDeleteGrant} />,
+    "grant-types": <GrantTypesPanel types={grantTypes} onAdd={handleAddGrantType} onEdit={handleEditGrantType} onDelete={handleDeleteGrantType} />,
     notifications: <NotificationsPanel notifs={notifs} onAdd={handleAddNotif} onEdit={handleEditNotif} onDelete={handleDeleteNotif} onToggle={handleToggleNotif} />,
   };
 
@@ -1304,6 +1441,7 @@ function AppInner() {
         <Route path="/container/:id" element={<ContainerDetail />} />
         <Route path="/authorization/:id" element={<AuthorizationDetail />} />
         <Route path="/grant/:id" element={<GrantDetail />} />
+        <Route path="/grantapis/:type" element={<GrantTypeDetail />} />
       </Routes>
     </BrowserRouter>
   );

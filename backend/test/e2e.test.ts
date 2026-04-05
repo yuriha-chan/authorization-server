@@ -786,4 +786,155 @@ describe('E2E Tests', () => {
       expect(approveRes.body.message).toContain('approved');
     });
   });
+
+  describe('GrantApiType Operation Code Execution', () => {
+    it('should execute grantCode when approving authorization with custom type', async () => {
+      const typeName = `exec-test-type-${Date.now()}`;
+      const expectedToken = `executed-token-${Date.now()}`;
+      
+      // Create a custom type with grantCode that returns identifiable data
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grant-types')
+        .send({
+          name: typeName,
+          grantCode: `
+            async function grant(secrets, account, realm) {
+              return { 
+                token: '${expectedToken}',
+                executed: true,
+                account: account,
+                repository: realm.repository,
+                secretToken: secrets.token
+              };
+            }
+          `,
+          revokeCode: 'async function revoke() { return { revoked: true }; }',
+          getStatusCode: 'async function getStatus() { return { active: true }; }'
+        })
+        .expect(201);
+
+      // Create a grant with the custom type and secrets
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: typeName,
+          baseURL: 'https://api.custom.com',
+          secret: JSON.stringify({ token: 'test-secret-value' }),
+          account: 'test-account',
+          name: `exec-test-grant-${Date.now()}`
+        })
+        .expect(201);
+
+      // Register agent
+      const { publicKey, privateKey } = generateKeyPair();
+      const fingerprint = getFingerprint(publicKey);
+      const agentName = `exec-agent-${Date.now()}`;
+      
+      await request(`http://localhost:${AGENT_PORT}`)
+        .post('/api/register')
+        .send({ uniqueName: agentName, publicKey })
+        .expect(201);
+
+      // Request access with custom type
+      const timestamp = Date.now();
+      const body = {
+        codeAccessPublicKey: 'test-code-key',
+        realm: { repository: 'test/repo', read: 1, write: 0, baseUrl: 'https://api.custom.com' },
+        type: typeName
+      };
+      const signature = signData(privateKey, `${timestamp}${JSON.stringify(body)}`);
+
+      const requestRes = await request(`http://localhost:${AGENT_PORT}`)
+        .post('/api/request-access')
+        .set('x-signature', signature)
+        .set('x-timestamp', String(timestamp))
+        .set('x-fingerprint', fingerprint)
+        .send(body)
+        .expect(202);
+
+      const pendingRequestId = requestRes.body.requestId;
+      expect(requestRes.body.state).toBe('pending');
+
+      // Approve the request - this should execute the grantCode
+      const approveRes = await request(`http://localhost:${ADMIN_PORT}`)
+        .post(`/api/requests/${pendingRequestId}/approve`)
+        .send({ revokeTime: 3600000 })
+        .expect(200);
+
+      // Verify the grant code was executed
+      expect(approveRes.body.grantResult).toBeDefined();
+      expect(approveRes.body.grantResult.executed).toBe(true);
+      expect(approveRes.body.grantResult.token).toBe(expectedToken);
+    });
+
+    it('should fail to approve when no grant exists for type', async () => {
+      const typeName = `no-grant-type-${Date.now()}`;
+      
+      // Create custom type but NO grant
+      await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grant-types')
+        .send({
+          name: typeName,
+          grantCode: 'async function grant() { return { token: "test" }; }',
+          revokeCode: 'async function revoke() { return { revoked: true }; }',
+          getStatusCode: 'async function getStatus() { return { active: true }; }'
+        })
+        .expect(201);
+
+      // Register agent
+      const { publicKey, privateKey } = generateKeyPair();
+      const fingerprint = getFingerprint(publicKey);
+      const agentName = `no-grant-agent-${Date.now()}`;
+      
+      await request(`http://localhost:${AGENT_PORT}`)
+        .post('/api/register')
+        .send({ uniqueName: agentName, publicKey })
+        .expect(201);
+
+      // Request access with custom type (no grant exists)
+      const timestamp = Date.now();
+      const body = {
+        codeAccessPublicKey: 'test-code-key',
+        realm: { repository: 'test/repo', read: 1, write: 0, baseUrl: 'https://api.custom.com' },
+        type: typeName
+      };
+      const signature = signData(privateKey, `${timestamp}${JSON.stringify(body)}`);
+
+      const requestRes = await request(`http://localhost:${AGENT_PORT}`)
+        .post('/api/request-access')
+        .set('x-signature', signature)
+        .set('x-timestamp', String(timestamp))
+        .set('x-fingerprint', fingerprint)
+        .send(body)
+        .expect(202);
+
+      const pendingRequestId = requestRes.body.requestId;
+
+      // Approve should fail because no grant exists
+      const approveRes = await request(`http://localhost:${ADMIN_PORT}`)
+        .post(`/api/requests/${pendingRequestId}/approve`)
+        .send({ revokeTime: 3600000 })
+        .expect(400);
+
+      expect(approveRes.body.error).toContain('No active Grant API found');
+    });
+
+    it('should validate that GrantAPI type references valid GrantApiType', async () => {
+      const invalidTypeName = `non-existent-type-${Date.now()}`;
+      
+      // Attempt to create grant with non-existent type
+      const res = await request(`http://localhost:${ADMIN_PORT}`)
+        .post('/api/grants')
+        .send({
+          type: invalidTypeName,
+          baseURL: 'https://api.test.com',
+          secret: 'test',
+          account: 'test',
+          name: 'invalid-type-grant'
+        })
+        .expect(400);
+
+      expect(res.body.error).toContain('does not exist');
+    });
+  });
 });

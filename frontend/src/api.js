@@ -25,6 +25,12 @@ export const api = {
   updateGrant: (id, data) => fetchAPI(`/grants/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteGrant: (id) => fetchAPI(`/grants/${id}`, { method: 'DELETE' }),
 
+  getGrantTypes: () => fetchAPI('/grant-types'),
+  getGrantType: (name) => fetchAPI(`/grant-types/${name}`),
+  createGrantType: (data) => fetchAPI('/grant-types', { method: 'POST', body: JSON.stringify(data) }),
+  updateGrantType: (name, data) => fetchAPI(`/grant-types/${name}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteGrantType: (name) => fetchAPI(`/grant-types/${name}`, { method: 'DELETE' }),
+
   getNotifications: () => fetchAPI('/notifications'),
   createNotification: (data) => fetchAPI('/notifications', { method: 'POST', body: JSON.stringify(data) }),
   updateNotification: (id, data) => fetchAPI(`/notifications/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
