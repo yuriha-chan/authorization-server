@@ -5,6 +5,7 @@ import { WebSocketManager } from './manager';
 import { eventBus } from '../events/pubsub';
 import { eventNotifier } from '../events/logger';
 import { randomUUID } from 'crypto';
+import { parse as parseCookie } from 'cookie';
 
 export class AdminWebSocket {
   private wss: WebSocketServer;
@@ -15,11 +16,18 @@ export class AdminWebSocket {
       server, 
       path: '/api/admin/ws',
       verifyClient: (info, cb) => {
-        const authHeader = info.req.headers['authorization'] || '';
-        const apiKey = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
         const validApiKey = process.env.ADMIN_API_KEY;
         
-        if (validApiKey && apiKey !== validApiKey) {
+        if (!validApiKey) {
+          cb(true);
+          return;
+        }
+        
+        const cookieHeader = info.req.headers.cookie || '';
+        const cookies = parseCookie(cookieHeader);
+        const token = cookies['admin_token'];
+        
+        if (token !== validApiKey) {
           cb(false, 401, 'Unauthorized');
           return;
         }

@@ -436,7 +436,7 @@ describe('E2E Tests', () => {
     it('WebSocket server is running on admin port', async () => {
       const WebSocket = require('ws');
       const ws = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
-        headers: { 'Authorization': `Bearer ${ADMIN_API_KEY}` }
+        headers: { 'Cookie': `admin_token=${ADMIN_API_KEY}` }
       });
       
       await new Promise((resolve, reject) => {
@@ -449,10 +449,10 @@ describe('E2E Tests', () => {
       ws.close();
     });
 
-    it('WebSocket rejects invalid Bearer token', async () => {
+    it('WebSocket rejects invalid cookie token', async () => {
       const WebSocket = require('ws');
       const ws = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
-        headers: { 'Authorization': 'Bearer invalid-key' }
+        headers: { 'Cookie': 'admin_token=invalid-key' }
       });
       
       let errorReceived = false;
@@ -475,7 +475,7 @@ describe('E2E Tests', () => {
     it('admin receives request_approved notification via WebSocket', async () => {
       const WebSocket = require('ws');
       const ws = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
-        headers: { 'Authorization': `Bearer ${ADMIN_API_KEY}` }
+        headers: { 'Cookie': `admin_token=${ADMIN_API_KEY}` }
       });
       
       const handshake =  new Promise<void>((resolve) => {
@@ -552,10 +552,10 @@ describe('E2E Tests', () => {
       const WebSocket = require('ws');
       
       const ws1 = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
-        headers: { 'Authorization': `Bearer ${ADMIN_API_KEY}` }
+        headers: { 'Cookie': `admin_token=${ADMIN_API_KEY}` }
       });
       const ws2 = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
-        headers: { 'Authorization': `Bearer ${ADMIN_API_KEY}` }
+        headers: { 'Cookie': `admin_token=${ADMIN_API_KEY}` }
       });
 
       const handshake = Promise.all([
@@ -649,7 +649,7 @@ describe('E2E Tests', () => {
     it('admin receives request_denied notification via WebSocket', async () => {
       const WebSocket = require('ws');
       const ws = new WebSocket(`ws://localhost:${ADMIN_PORT}/api/admin/ws`, {
-        headers: { 'Authorization': `Bearer ${ADMIN_API_KEY}` }
+        headers: { 'Cookie': `admin_token=${ADMIN_API_KEY}` }
       });
 
       const handshake = new Promise<void>((resolve) => {

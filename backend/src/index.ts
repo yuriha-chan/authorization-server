@@ -1,12 +1,24 @@
 // src/index.ts
 import { fork, ChildProcess } from 'child_process';
 import path from 'path';
+import { randomBytes } from 'crypto';
 import { AppDataSource } from './db/data-source';
+
+function generateApiKey(): string {
+  return randomBytes(32).toString('base64');
+}
 
 async function main() {
   await AppDataSource.initialize();
   console.log('Database initialized');
-  
+
+  if (!process.env.ADMIN_API_KEY) {
+    const apiKey = generateApiKey();
+    process.env.ADMIN_API_KEY = apiKey;
+    const adminPort = process.env.ADMIN_PORT || '8081';
+    console.log(`Admin API Key generated: http://localhost:${adminPort}/?key=${encodeURIComponent(apiKey)}`);
+  }
+
   const agentEnv = process.env;
   const adminEnv = process.env;
 

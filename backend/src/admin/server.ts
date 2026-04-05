@@ -1,6 +1,7 @@
 // src/admin/server.ts
 import express from 'express';
 import cors from 'cors';
+import cookieParser = require('cookie-parser');
 import { Server as HttpServer } from 'http';
 import { AdminWebSocket } from '../websocket/admin';
 import { agentsRouter } from './routes/agents';
@@ -13,6 +14,7 @@ import { eventsRouter } from './routes/events';
 import { AppDataSource } from '../db/data-source';
 import { AgentContainer } from '../entities/AgentContainer';
 import { Authorization } from '../entities/Authorization';
+import { authenticateAdmin, AUTH_COOKIE_NAME } from './middleware/auth';
 import fs from 'fs';
 import path from 'path';
 
@@ -21,7 +23,8 @@ const port = parseInt(process.env.ADMIN_PORT || '8081');
 
 AppDataSource.initialize().catch((err: any) => console.error('DB init failed:', err));
 
-app.use(cors());
+app.use(cors({ credentials: true, origin: true }));
+app.use(cookieParser() as any);
 app.use(express.json());
 
 app.get('/api/status', (req, res) => {
@@ -98,5 +101,30 @@ app.get('/api/openapi.json', (req, res) => {
   const spec = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'admin-openapi.json'), 'utf-8'));
   res.json(spec);
 });
+
+// Login endpoint - sets secure cookie
+app.get('/login', (req, res) => {
+  const key = req.query.key as string;
+  const validApiKey = process.env.ADMIN_API_KEY;
+  
+  if (validApiKey && key !== validApiKey) {
+    res.status(401).json({ error: 'Invalid key' });
+    return;
+  }
+  
+  if (validApiKey) {
+    res.cookie(AUTH_COOKIE_NAME, key, {
+      httpOnly: true,
+      secure: req.secure || req.headers['x-forwarded-proto'] === 'https',
+      sameSite: 'strict',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
+  }
+  
+  res.redirect('/');
+});
+
+// Apply authentication middleware to all API routes
+app.use('/api', authenticateAdmin);
 
 export { adminWebSocket };
