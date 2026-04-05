@@ -112,7 +112,7 @@ export const OverviewPanel = ({
             p={3}
             cursor="pointer"
             _hover={{ borderColor: 'brand.400' }}
-            onClick={() => onNav('agents')}
+            onClick={() => onNav('authorizations')}
           >
             <VStack gap={1} align="start">
               <Text fontSize="10px" color={mutedColor} fontFamily="mono">

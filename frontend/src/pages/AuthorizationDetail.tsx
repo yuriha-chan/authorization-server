@@ -16,8 +16,8 @@ import {
 } from '@chakra-ui/react';
 import { api } from '../api';
 import { useColorModeValue } from '../hooks/useColorMode';
-import { useCommonStyles, cardStyles, linkStyles } from '../styles';
-import { StateBadge, TypeBadge, FpBadge } from '../components';
+import { useCommonStyles, cardStyles } from '../styles';
+import { StateBadge, TypeBadge, FpBadge, ContainerWithFingerprint } from '../components';
 import type { Authorization } from '../types';
 
 export function AuthorizationDetail() {
@@ -193,34 +193,27 @@ export function AuthorizationDetail() {
               Container
             </Text>
             {auth.container ? (
-              <Link to={`/container/${auth.container.id}`}>
-                <Box
-                  p={3}
-                  border="1px solid"
-                  borderColor={styles.border}
-                  borderRadius="md"
-                  _hover={{ borderColor: 'brand.500', bg: styles.hover }}
-                  transition="all 0.2s"
-                >
-                  <VStack align="start" gap={1}>
-                    <Text
-                      fontSize="sm"
-                      fontFamily="mono"
-                      fontWeight="medium"
-                      style={{ ...linkStyles }}
-                    >
-                      {auth.container.uniqueName}
-                    </Text>
-                    <Text fontSize="xs" color={styles.textMuted}>
-                      Created:{' '}
-                      {auth.container.createdAt
-                        ? new Date(auth.container.createdAt).toLocaleDateString()
-                        : '-'}
-                    </Text>
-                    <FpBadge fp={auth.container.fingerprint} />
-                  </VStack>
-                </Box>
-              </Link>
+              <Box
+                p={3}
+                border="1px solid"
+                borderColor={styles.border}
+                borderRadius="md"
+                _hover={{ borderColor: 'brand.500', bg: styles.hover }}
+                transition="all 0.2s"
+              >
+                <VStack align="start" gap={1}>
+                  <ContainerWithFingerprint
+                    container={auth.container}
+                    useColorModeValue={useColorModeValue}
+                  />
+                  <Text fontSize="xs" color={styles.textMuted}>
+                    Created:{' '}
+                    {auth.container.createdAt
+                      ? new Date(auth.container.createdAt).toLocaleString()
+                      : '-'}
+                  </Text>
+                </VStack>
+              </Box>
             ) : (
               <Text color={styles.textMuted} fontSize="sm">
                 No container information available.

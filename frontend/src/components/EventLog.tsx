@@ -35,9 +35,9 @@ const LogItem = ({ event }: LogItemProps) => {
         return (
           <VStack gap={1} align="start">
             <HStack gap={2} flexWrap="wrap">
-              <Text fontSize="11px" fontFamily="mono" color={textColor}>
-                New
-              </Text>
+              <Badge colorPalette="yellow" fontSize="9px" fontFamily="mono">
+                NEW REQUEST
+              </Badge>
               {d.requestId && (
                 <RouterLink to={`/authorization/${d.requestId}`}>
                   <Text
@@ -50,9 +50,6 @@ const LogItem = ({ event }: LogItemProps) => {
                   </Text>
                 </RouterLink>
               )}
-              <Text fontSize="11px" fontFamily="mono" color={textColor}>
-                request
-              </Text>
               <Text fontSize="11px" fontFamily="mono" color={textColor}>
                 for
               </Text>
@@ -188,7 +185,7 @@ const LogItem = ({ event }: LogItemProps) => {
         return (
           <VStack gap={1} align="start">
             <HStack gap={2} flexWrap="wrap">
-              <Badge colorPalette="green" size="sm" fontFamily="mono">
+              <Badge colorPalette="green" fontSize="9px" fontFamily="mono">
                 REGISTERED
               </Badge>
               <Text fontSize="11px" fontFamily="mono" color={textColor}>

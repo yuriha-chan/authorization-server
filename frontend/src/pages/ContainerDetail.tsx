@@ -20,7 +20,6 @@ import { useCommonStyles, cardStyles, linkStyles } from '../styles';
 import {
   StateBadge,
   TypeBadge,
-  FpBadge,
 } from '../components';
 import type { Agent } from '../types';
 
@@ -148,7 +147,19 @@ export function ContainerDetail() {
                 <Text fontSize="sm" color={styles.textMuted}>
                   Fingerprint
                 </Text>
-                <FpBadge fp={container.fingerprint} />
+                <Text
+                  fontSize="10px"
+                  fontFamily="mono"
+                  px={2}
+                  py={0.5}
+                  borderRadius="sm"
+                  bg="surface.700"
+                  color="gray.300"
+                  display="inline-block"
+                  wordBreak="break-all"
+                >
+                  {container.fingerprint}
+                </Text>
               </HStack>
               <HStack justify="space-between">
                 <Text fontSize="sm" color={styles.textMuted}>
@@ -189,12 +200,15 @@ export function ContainerDetail() {
               Public Key
             </Text>
             <Box
+              as="pre"
               bg={styles.code}
               p={3}
               borderRadius="md"
               fontFamily="mono"
               fontSize="xs"
               wordBreak="break-all"
+              whiteSpace="pre-wrap"
+              textAlign="left"
               maxH="200px"
               overflowY="auto"
             >

@@ -220,7 +220,7 @@ export function GrantTypeDetail() {
                     Grant Function
                   </Text>
                 </Box>
-                <Box p={4}>
+                <Box p={4} textAlign="left">
                   <CodeEditor
                     value={grantType.grantCode}
                     onChange={(value) => updateCode('grantCode', value)}
@@ -254,7 +254,7 @@ export function GrantTypeDetail() {
                     Revoke Function
                   </Text>
                 </Box>
-                <Box p={4}>
+                <Box p={4} textAlign="left">
                   <CodeEditor
                     value={grantType.revokeCode}
                     onChange={(value) => updateCode('revokeCode', value)}
@@ -288,7 +288,7 @@ export function GrantTypeDetail() {
                     Status Function
                   </Text>
                 </Box>
-                <Box p={4}>
+                <Box p={4} textAlign="left">
                   <CodeEditor
                     value={grantType.getStatusCode}
                     onChange={(value) => updateCode('getStatusCode', value)}

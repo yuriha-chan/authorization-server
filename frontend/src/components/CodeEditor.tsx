@@ -52,6 +52,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       style={{
         fontSize: '13px',
         fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+        textAlign: 'left',
       }}
     />
   );
