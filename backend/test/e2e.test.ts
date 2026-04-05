@@ -196,6 +196,42 @@ describe('E2E Tests', () => {
   });
 
   describe('Request Access Flow', () => {
+    it('POST /api/request-access accepts new format with realm object containing repository, read, and write', async () => {
+      const { publicKey, privateKey } = generateKeyPair();
+      const fingerprint = getFingerprint(publicKey);
+      const timestamp = Date.now();
+      const body = {
+        serviceAccessKey: 'test-new-format-key',
+        realm: {
+          repository: 'test/repo',
+          read: 1,
+          write: 0
+        },
+        grantApi: 'test-grant-new-format'
+      };
+      const bodyString = JSON.stringify(body);
+      const signature = signData(privateKey, `${timestamp}${bodyString}`);
+
+      await request(`http://localhost:${AGENT_PORT}`)
+        .post('/api/register')
+        .send({
+          uniqueName: `new-format-agent-${Date.now()}`,
+          publicKey
+        })
+        .expect(201);
+
+      const res = await request(`http://localhost:${AGENT_PORT}`)
+        .post('/api/request-access')
+        .set('x-signature', signature)
+        .set('x-timestamp', String(timestamp))
+        .set('x-fingerprint', fingerprint)
+        .send(body)
+        .expect(202);
+
+      expect(res.body.requestId).toBeDefined();
+      expect(res.body.state).toBe('pending');
+    });
+
     it('POST /api/request-access without signature returns 401', async () => {
       const res = await request(`http://localhost:${AGENT_PORT}`)
         .post('/api/request-access')
