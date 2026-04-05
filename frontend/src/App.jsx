@@ -1020,11 +1020,17 @@ function Dashboard() {
           case 'new_pending_request':
             setPending(prev => [...prev, {
               id: msg.data.requestId,
-              agentUniqueName: msg.data.agentUniqueName,
-              fingerprint: msg.data.fingerprint,
-              realm: msg.data.realm,
               state: 'pending',
-              createdAt: msg.data.timestamp
+              createdAt: new Date(msg.data.timestamp).toISOString(),
+              authorization: {
+                type: msg.data.type,
+                realm: msg.data.realm,
+                container: {
+                  id: msg.data.containerId,
+                  uniqueName: msg.data.agentUniqueName,
+                  fingerprint: msg.data.fingerprint
+                }
+              }
             }]);
             setEventLogs(prev => [{
               id: msg.data.id,

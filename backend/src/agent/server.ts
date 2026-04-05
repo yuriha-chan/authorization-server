@@ -121,27 +121,31 @@ app.post('/api/request-access', verifySignature, async (req, res) => {
     const validated = requestSchema.parse(req.body);
     const agent = req.agent;
     
-    const authRepo = AppDataSource.getRepository(Authorization);
-    const auth = authRepo.create({
-      key: validated.codeAccessPublicKey,
-      type: validated.type,
-      realm: validated.realm,
-      state: 'pending',
-      container: agent
-    });
-    
-    // AuthorizationRequestエンティティ作成
-    const requestRepo = AppDataSource.getRepository(AuthorizationRequest);
-    const request = requestRepo.create({
-      state: 'pending',
-      signature: req.headers['x-signature'] as string,
-      history: [{ action: 'created', timestamp: new Date() }],
-      authorization: auth
-    });
-    
-    await AppDataSource.transaction(async (manager) => {
-      await manager.save(auth);
-      await manager.save(request);
+    // Use transaction to ensure both are created atomically
+    const { auth, request } = await AppDataSource.transaction(async (manager) => {
+      const authRepo = manager.getRepository(Authorization);
+      const requestRepo = manager.getRepository(AuthorizationRequest);
+
+      // Create and save authorization first
+      const auth = authRepo.create({
+        key: validated.codeAccessPublicKey,
+        type: validated.type,
+        realm: validated.realm,
+        state: 'pending',
+        container: agent
+      });
+      await authRepo.save(auth);
+
+      // Create request with the saved auth (now has an ID)
+      const request = requestRepo.create({
+        state: 'pending',
+        signature: req.headers['x-signature'] as string,
+        history: [{ action: 'created', timestamp: new Date() }],
+        authorization: { id: auth.id }
+      });
+      await requestRepo.save(request);
+
+      return { auth, request };
     });
     
     // Redis経由でAdminに通知
@@ -150,7 +154,9 @@ app.post('/api/request-access', verifySignature, async (req, res) => {
       agentUniqueName: agent!.uniqueName,
       fingerprint: agent!.fingerprint,
       realm: validated.realm,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      type: validated.type,
+      containerId: agent!.id
     });
     
     res.status(202).json({

@@ -143,7 +143,9 @@ export class AdminWebSocket {
         agentUniqueName: data.agentUniqueName,
         fingerprint: data.fingerprint,
         realm: data.realm,
-        containerId: data.containerId
+        containerId: data.containerId,
+        type: data.type,
+        timestamp: data.timestamp
       });
     });
     

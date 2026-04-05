@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
  * Agent Client Script
- * 
+ *
  * Subcommands:
  *   init     - Generate keypair and save to ~/.auth/
+ *   register - Register existing keypair with server
  *   request  - Connect WebSocket, send REST request, wait for approval
- * 
+ *
  * Usage:
  *   node agent-client.js init
+ *   node agent-client.js register [--name <name>] [--host <host>] [--port <port>]
  *   node agent-client.js request <type> <realm-spec> [--host <host>] [--port <port>]
  * 
  * Exit Codes:
@@ -46,7 +48,7 @@ function parseArgs() {
       port: process.env.AGENT_PORT || '8080',
       name: null
     };
-    
+
     // Parse optional flags
     for (let i = 1; i < args.length; i++) {
       switch (args[i]) {
@@ -64,7 +66,36 @@ function parseArgs() {
           break;
       }
     }
-    
+
+    return options;
+  }
+
+  if (command === 'register') {
+    const options = {
+      command: 'register',
+      host: process.env.AGENT_HOST || 'localhost',
+      port: process.env.AGENT_PORT || '8080',
+      name: null
+    };
+
+    // Parse optional flags
+    for (let i = 1; i < args.length; i++) {
+      switch (args[i]) {
+        case '--host':
+        case '-h':
+          options.host = args[++i];
+          break;
+        case '--port':
+        case '-p':
+          options.port = args[++i];
+          break;
+        case '--name':
+        case '-n':
+          options.name = args[++i];
+          break;
+      }
+    }
+
     return options;
   }
   
@@ -116,24 +147,33 @@ Agent Client - Authentication Agent
 
 Usage:
   agent-client init [options]                 Generate keypair and register agent
+  agent-client register [options]             Register existing keypair with server
   agent-client request <type> <realm-spec>    Send request and wait for approval
 
 Commands:
   init [options]
     Generate RSA keypair and register with server
-    
+
     Options:
       -h, --host <host>      Agent server host (default: localhost)
       -p, --port <port>      Agent server port (default: 8080)
       -n, --name <name>      Agent unique name (default: auto-generated)
-    
+
     Saves keys to:
       ~/.auth/id      (private key)
       ~/.auth/id.pub  (public key)
 
+  register [options]
+    Register existing keypair with server (use after 'init' if registration failed)
+
+    Options:
+      -h, --host <host>      Agent server host (default: localhost)
+      -p, --port <port>      Agent server port (default: 8080)
+      -n, --name <name>      Agent unique name (default: auto-generated)
+
   request <type> <realm-spec> [options]
     Connect via WebSocket, send REST request, wait for approval
-    
+
     Arguments:
       type         Grant API type (e.g., github)
       realm-spec   Realm specification in format: repo@baseUrl[r][w]
@@ -142,7 +182,7 @@ Commands:
                      myrepo@github.com[r]     (read-only)
                      myrepo@github.com[w]     (write-only)
                      myrepo@github.com[rw]    (read-write)
-    
+
     Options:
       -h, --host <host>      Server host (default: localhost)
       -p, --port <port>      Server port (default: 9080)
@@ -271,7 +311,7 @@ async function registerAgent(host, port, uniqueName, publicKey) {
 // Initialize command: generate keypair and register
 async function cmdInit(options) {
   ensureAuthDir();
-  
+
   if (fs.existsSync(PRIVATE_KEY_FILE) || fs.existsSync(PUBLIC_KEY_FILE)) {
     console.error('Error: Keys already exist');
     console.error(`  Private: ${PRIVATE_KEY_FILE}`);
@@ -279,26 +319,26 @@ async function cmdInit(options) {
     console.error('Remove them first if you want to regenerate');
     exit(2);
   }
-  
+
   console.log('Generating RSA keypair...');
   const { publicKey, privateKey } = generateKeyPair();
   const fingerprint = getFingerprint(publicKey);
-  
+
   fs.writeFileSync(PRIVATE_KEY_FILE, privateKey, { mode: 0o600 });
   fs.writeFileSync(PUBLIC_KEY_FILE, publicKey, { mode: 0o644 });
-  
+
   console.log('Keys generated successfully:');
   console.log(`  Private: ${PRIVATE_KEY_FILE}`);
   console.log(`  Public:  ${PUBLIC_KEY_FILE}`);
   console.log(`  Fingerprint: ${fingerprint}`);
   console.log('');
-  
+
   // Generate default agent name if not provided
   const uniqueName = options.name || `agent-${os.hostname()}-${Date.now()}`;
-  
+
   // Register with server
   console.log(`Registering agent '${uniqueName}' with ${options.host}:${options.port}...`);
-  
+
   try {
     const result = await registerAgent(options.host, options.port, uniqueName, publicKey);
     console.log('Agent registered successfully:');
@@ -309,7 +349,32 @@ async function cmdInit(options) {
     console.error(`Registration failed: ${err.message}`);
     console.log('');
     console.log('Keys were generated but NOT registered. To register manually:');
-    console.log(`  curl -X POST http://${options.host}:${options.port}/api/register \\\n    -H "Content-Type: application/json" \\\n    -d '{"uniqueName":"${uniqueName}","publicKey":"..."}'`);
+    console.log(`  node agent-client.js register --name "${uniqueName}"`);
+    exit(2);
+  }
+}
+
+// Register command: register existing keypair with server
+async function cmdRegister(options) {
+  ensureAuthDir();
+
+  // Load existing keys
+  const keys = loadKeys();
+
+  // Generate default agent name if not provided
+  const uniqueName = options.name || `agent-${os.hostname()}-${Date.now()}`;
+
+  // Register with server
+  console.log(`Registering agent '${uniqueName}' with ${options.host}:${options.port}...`);
+
+  try {
+    const result = await registerAgent(options.host, options.port, uniqueName, keys.publicKey);
+    console.log('Agent registered successfully:');
+    console.log(`  ID:       ${result.id}`);
+    console.log(`  Name:     ${result.uniqueName}`);
+    console.log(`  State:    ${result.state}`);
+  } catch (err) {
+    console.error(`Registration failed: ${err.message}`);
     exit(2);
   }
 }
@@ -515,6 +580,8 @@ async function main() {
 
   if (options.command === 'init') {
     await cmdInit(options);
+  } else if (options.command === 'register') {
+    await cmdRegister(options);
   } else if (options.command === 'request') {
     await cmdRequest(options);
   }

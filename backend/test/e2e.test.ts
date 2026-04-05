@@ -455,15 +455,21 @@ describe('E2E Tests', () => {
         headers: { 'Authorization': 'Bearer invalid-key' }
       });
       
+      let errorReceived = false;
+      let errorMessage = '';
+      
       await new Promise((resolve, reject) => {
-        ws.on('open', resolve);
-        ws.on('error', reject);
+        ws.on('open', () => reject(new Error('Should not connect with invalid token')));
+        ws.on('error', (err: Error) => {
+          errorReceived = true;
+          errorMessage = err.message;
+          resolve(undefined);
+        });
         setTimeout(() => reject(new Error('Timeout')), 5000);
       });
 
-      await new Promise((resolve) => ws.on('close', resolve));
-      expect(ws.readyState).toBe(WebSocket.CLOSED);
-      expect(ws.closeCode).toBe(401);
+      expect(errorReceived).toBe(true);
+      expect(errorMessage).toContain('401');
     });
 
     it('admin receives request_approved notification via WebSocket', async () => {

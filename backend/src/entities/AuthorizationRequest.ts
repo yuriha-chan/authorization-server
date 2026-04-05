@@ -1,5 +1,5 @@
 // src/entities/AuthorizationRequest.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Authorization } from './Authorization';
 
 @Entity('authorization_requests')
@@ -16,7 +16,11 @@ export class AuthorizationRequest {
   @Column({ type: 'json', nullable: true })
   history: Array<{ action: string; timestamp: Date; admin?: string }>;
 
+  @Column({ type: 'varchar', nullable: true })
+  authorizationId: string;
+
   @ManyToOne(() => Authorization, { cascade: true })
+  @JoinColumn({ name: 'authorizationId' })
   authorization: Authorization;
 
   @CreateDateColumn()
