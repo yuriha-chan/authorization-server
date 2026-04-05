@@ -11,7 +11,8 @@ export const grantsRouter = Router();
 grantsRouter.get('/', async (req, res) => {
   try {
     const grants = await AppDataSource.getRepository(GrantAPI).find({
-      where: { state: 'active' }
+      where: { state: 'active' },
+      order: { createdAt: 'DESC' }
     });
     res.json(grants);
   } catch (error) {

@@ -9,7 +9,9 @@ export const notificationsRouter = Router();
 
 notificationsRouter.get('/', async (req, res) => {
   try {
-    const notifications = await AppDataSource.getRepository(NotificationAPI).find();
+    const notifications = await AppDataSource.getRepository(NotificationAPI).find({
+      order: { createdAt: 'DESC' }
+    });
     res.json(notifications);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch notifications' });
