@@ -1,8 +1,8 @@
 /** @format */
 
 import { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { ChakraProvider, Box, Flex, VStack, Text, Spinner, Center } from '@chakra-ui/react';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { ChakraProvider, Box, Flex, VStack, HStack, Text, Spinner, Center, Dialog, Field, Input, Button } from '@chakra-ui/react';
 import { useDisclosure } from '@chakra-ui/react';
 import { ThemeProvider } from 'next-themes';
 
@@ -58,6 +58,9 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const { open: isAuthsOpen, onOpen: onAuthsOpen, onClose: onAuthsClose } = useDisclosure();
+  const { open: isAddGrantTypeOpen, onOpen: onAddGrantTypeOpen, onClose: onAddGrantTypeClose } = useDisclosure();
+  const [newGrantTypeName, setNewGrantTypeName] = useState('');
+  const navigate = useNavigate();
   const { toggleColorMode } = useColorMode();
 
   const loadData = useCallback(async () => {
@@ -355,6 +358,7 @@ function Dashboard() {
 
   const bg = useColorModeValue('gray.100', 'surface.900');
   const mainBg = useColorModeValue('gray.50', 'surface.900');
+  const border = useColorModeValue('gray.200', 'surface.600');
 
   const notify = useCallback(
     (title: string, desc: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') => {
@@ -464,25 +468,36 @@ function Dashboard() {
     }
   };
 
-  const handleAddGrantType = async (f: Partial<GrantType>) => {
+  const handleAddGrantType = async () => {
+    if (!newGrantTypeName.trim()) return;
     try {
-      await api.createGrantType(f);
+      const defaultCode = `async function grant(secrets, account, realm) {
+  // Implement grant logic here
+  return { token: 'example-token' };
+}`;
+      await api.createGrantType({
+        name: newGrantTypeName.trim(),
+        grantCode: defaultCode,
+        revokeCode: `async function revoke(secrets, account, token) {
+  // Implement revoke logic here
+  return { revoked: true };
+}`,
+        getStatusCode: `async function getStatus(secrets, account, token) {
+  // Implement status logic here
+  return { active: true };
+}`,
+      });
+      setNewGrantTypeName('');
+      onAddGrantTypeClose();
       notify('Added', 'Grant API type created', 'success');
       loadData();
+      navigate(`/grantapis/${newGrantTypeName.trim()}`);
     } catch (err) {
       notify('Error', (err as Error).message, 'error');
     }
   };
 
-  const handleEditGrantType = async (f: GrantType) => {
-    try {
-      await api.updateGrantType(f.name, f);
-      notify('Updated', 'Grant API type updated', 'success');
-      loadData();
-    } catch (err) {
-      notify('Error', (err as Error).message, 'error');
-    }
-  };
+
 
   const handleAddGrant = async (f: Partial<Grant>) => {
     try {
@@ -592,8 +607,7 @@ function Dashboard() {
     'grant-types': (
       <GrantTypesPanel
         types={grantTypes}
-        onAdd={handleAddGrantType}
-        onEdit={handleEditGrantType}
+        onAdd={onAddGrantTypeOpen}
         onDelete={handleDeleteGrantType}
       />
     ),
@@ -656,6 +670,47 @@ function Dashboard() {
         onUpdateRevokeTime={handleUpdateRevokeTime}
       />
       <Toaster />
+
+      <Dialog.Root open={isAddGrantTypeOpen} onOpenChange={(e) => !e.open && onAddGrantTypeClose()}>
+        <Dialog.Backdrop bg="blackAlpha.700" backdropFilter="blur(4px)" />
+        <Dialog.Positioner>
+          <Dialog.Content bg={bg} border="1px solid" borderColor={border}>
+            <Dialog.Header fontFamily="mono" fontSize="sm" letterSpacing="0.08em">
+              Add Grant API Type
+            </Dialog.Header>
+            <Dialog.CloseTrigger />
+            <Dialog.Body>
+              <Field.Root>
+                <Field.Label fontSize="11px" fontFamily="mono" letterSpacing="0.08em" textTransform="uppercase" color="gray.500">
+                  Name
+                </Field.Label>
+                <Input
+                  value={newGrantTypeName}
+                  onChange={(e) => setNewGrantTypeName(e.target.value)}
+                  placeholder="e.g., github"
+                  fontFamily="mono"
+                />
+              </Field.Root>
+            </Dialog.Body>
+            <Dialog.Footer>
+              <HStack gap={2} justify="flex-end">
+                <Button size="sm" variant="ghost" onClick={onAddGrantTypeClose} fontFamily="mono">
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  colorPalette="brand"
+                  onClick={handleAddGrantType}
+                  disabled={!newGrantTypeName.trim()}
+                  fontFamily="mono"
+                >
+                  Create
+                </Button>
+              </HStack>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Dialog.Root>
     </Box>
   );
 }

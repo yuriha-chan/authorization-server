@@ -10,6 +10,7 @@ export { GrantTypesPanel } from './GrantTypesPanel';
 export { NotificationsPanel } from './NotificationsPanel';
 export { AuthsDrawer } from './AuthsDrawer';
 export { EventLog } from './EventLog';
+export { CodeEditor } from './CodeEditor';
 export {
   StateBadge,
   TypeBadge,
