@@ -101,6 +101,14 @@ app.post('/api/register', async (req, res) => {
     
     await repo.save(agent);
     
+    // Notify via event bus for event logging
+    await eventBus.publish('agent:registered', {
+      agentId: agent.id,
+      uniqueName: agent.uniqueName,
+      fingerprint: agent.fingerprint,
+      timestamp: Date.now()
+    });
+    
     res.status(201).json({
       id: agent.id,
       uniqueName: agent.uniqueName,

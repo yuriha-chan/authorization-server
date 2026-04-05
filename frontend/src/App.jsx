@@ -743,7 +743,7 @@ const AuthsDrawer = ({ agent, open, onClose, onRevoke, onApprove, onDeny, onUpda
 const LogItem = ({ event }) => {
   const evColors = {
     new_pending_request: "warn", request_approved: "brand", request_denied: "danger",
-    agent_updated: "accent", grant_api_updated: "brand", notification_api_updated: "accent",
+    agent_registered: "success", agent_updated: "accent", grant_api_updated: "brand", notification_api_updated: "accent",
     authorization_revoked: "danger", notification_delivery_failed: "error"
   };
   const textColor = useColorModeValue("gray.700", "gray.300");
@@ -841,6 +841,21 @@ const LogItem = ({ event }) => {
               )}
               {d.agentUniqueName && !d.containerId && (
                 <Text fontSize="11px" fontFamily="mono" color={textColor}>{d.agentUniqueName}</Text>
+              )}
+            </HStack>
+          </VStack>
+        );
+      case 'agent_registered':
+        return (
+          <VStack gap={1} align="start">
+            <HStack gap={2} flexWrap="wrap">
+              <Badge colorPalette="green" size="sm" fontFamily="mono">REGISTERED</Badge>
+              <Text fontSize="11px" fontFamily="mono" color={textColor}>agent</Text>
+              {d.uniqueName && d.agentId && (
+                <ContainerWithFingerprint
+                  container={{ id: d.agentId, uniqueName: d.uniqueName, fingerprint: d.fingerprint }}
+                  useColorModeValue={useColorModeValue}
+                />
               )}
             </HStack>
           </VStack>
@@ -1037,6 +1052,41 @@ function Dashboard() {
               timestamp: now,
               type: msg.type,
               message: '',
+              data: msg.data
+            }, ...prev].slice(0, 100));
+            break;
+          case 'request_approved':
+            setPending(prev => prev.filter(p => p.id !== msg.data.requestId));
+            setEventLogs(prev => [{
+              id: msg.data.id,
+              timestamp: now,
+              type: msg.type,
+              message: '',
+              data: msg.data
+            }, ...prev].slice(0, 100));
+            break;
+          case 'request_denied':
+            setPending(prev => prev.filter(p => p.id !== msg.data.requestId));
+            setEventLogs(prev => [{
+              id: msg.data.id,
+              timestamp: now,
+              type: msg.type,
+              message: '',
+              data: msg.data
+            }, ...prev].slice(0, 100));
+            break;
+          case 'agent_registered':
+            setAgents(prev => [...prev, {
+              id: msg.data.agentId,
+              uniqueName: msg.data.uniqueName,
+              fingerprint: msg.data.fingerprint,
+              state: 'active'
+            }]);
+            setEventLogs(prev => [{
+              id: msg.data.id,
+              timestamp: now,
+              type: msg.type,
+              message: `Agent "${msg.data.uniqueName}" registered`,
               data: msg.data
             }, ...prev].slice(0, 100));
             break;

@@ -170,6 +170,15 @@ export class AdminWebSocket {
       });
     });
     
+    eventBus.subscribe('agent:registered', async (data) => {
+      await eventNotifier.notify('agent_registered', `Agent "${data.uniqueName}" registered`, {
+        agentId: data.agentId,
+        uniqueName: data.uniqueName,
+        fingerprint: data.fingerprint,
+        timestamp: data.timestamp
+      });
+    });
+    
     eventBus.subscribe('agent:updated', async (data) => {
       await eventNotifier.notify('agent_updated', '', {
         action: data.action,
