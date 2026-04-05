@@ -1,5 +1,5 @@
 // src/entities/Authorization.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 import { AgentContainer } from './AgentContainer';
 import { GrantAPI } from './GrantAPI';
 
@@ -11,7 +11,12 @@ export class Authorization {
   @Column()
   key: string; // 公開鍵のフィンガープリント
 
+  /**
+   * The GrantAPI instance this authorization is for.
+   * Eager loading ensures grantApi.type.name is available for approval flow.
+   */
   @ManyToOne(() => GrantAPI, { eager: true, nullable: false })
+  @Index()
   grantApi: GrantAPI;
 
   @Column({ type: 'json' })
