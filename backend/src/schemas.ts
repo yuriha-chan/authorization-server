@@ -23,6 +23,7 @@ export const grantSchema = z.object({
   name: z.string().min(1),
   defaultRevokeTime: z.number().optional(),
   description: z.string().optional(),
+  state: z.enum(['active', 'inactive', 'deleted']).optional(),
 });
 
 export const notificationSchema = z.object({

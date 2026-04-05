@@ -81,6 +81,43 @@ app.get('/api/status', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now(), role: 'agent' });
 });
 
+app.get('/api/grant-apis', async (req, res) => {
+  const type = req.query.type as string;
+  const baseUrl = req.query.baseUrl as string;
+
+  if (!type) {
+    return res.status(400).json({ error: 'Missing required query parameter: type' });
+  }
+
+  try {
+    const grantRepo = AppDataSource.getRepository(GrantAPI);
+    
+    const queryBuilder = grantRepo.createQueryBuilder('grant')
+      .leftJoinAndSelect('grant.type', 'type')
+      .where('type.name = :typeName', { typeName: type })
+      .andWhere('grant.state = :state', { state: 'active' });
+
+    if (baseUrl) {
+      queryBuilder.andWhere('grant.baseURL = :baseUrl', { baseUrl });
+    }
+
+    const grants = await queryBuilder.getMany();
+
+    const result = grants.map(grant => ({
+      id: grant.id,
+      name: grant.name,
+      type: grant.type.name,
+      baseURL: grant.baseURL,
+      description: grant.description
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching grant-apis:', error);
+    res.status(500).json({ error: 'Failed to fetch grant-apis' });
+  }
+});
+
 app.post('/api/register', async (req, res) => {
   try {
     const validated = registerSchema.parse(req.body);
