@@ -1024,6 +1024,7 @@ describe('E2E Tests', () => {
         .expect(201);
 
       // Create a grant with the custom type and secrets
+      const grantName = `exec-test-grant-${Date.now()}`;
       await request(`http://localhost:${ADMIN_PORT}`)
         .post('/api/grants')
         .send({
@@ -1031,7 +1032,7 @@ describe('E2E Tests', () => {
           baseURL: 'https://api.custom.com',
           secret: JSON.stringify({ token: 'test-secret-value' }),
           account: 'test-account',
-          name: `exec-test-grant-${Date.now()}`
+          name: grantName
         })
         .expect(201);
 
