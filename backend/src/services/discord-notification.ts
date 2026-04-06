@@ -1,5 +1,5 @@
 // src/services/discord-notification.ts
-import { Client, GatewayIntentBits, TextChannel } from 'discord.js';
+import { Client, GatewayIntentBits, TextChannel, Message, ActionRowBuilder, ButtonBuilder, ButtonStyle, Interaction } from 'discord.js';
 import { NotificationAPI } from '../entities/NotificationAPI';
 import { approveRequest, denyRequest } from './request-actions';
 
@@ -13,27 +13,40 @@ interface RequestData {
 }
 
 const discordClients = new Map<string, Client>();
+const discordMessages = new Map<string, Message>();
 
 export async function sendDiscordNotification(notification: NotificationAPI, requestData: RequestData): Promise<void> {
   let client = discordClients.get(notification.secret);
   
   if (!client) {
     client = new Client({ 
-      intents: [GatewayIntentBits.Guilds] 
+      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] 
     });
     
-    client.on('interactionCreate', async (interaction) => {
+    client.on('interactionCreate', async (interaction: Interaction) => {
       if (!interaction.isButton()) return;
       
       const customId = interaction.customId;
       if (customId.startsWith('approve_')) {
         const requestId = customId.replace('approve_', '');
-        await approveRequest(requestId, 'discord');
-        await interaction.reply({ content: '✅ Request approved!', ephemeral: true });
+        const result = await approveRequest(requestId, 'discord');
+        
+        if (result.success) {
+          await interaction.reply({ content: '✅ Request approved!', ephemeral: true });
+          await disableButtons(requestId);
+        } else {
+          await interaction.reply({ content: `❌ ${result.error}`, ephemeral: true });
+        }
       } else if (customId.startsWith('deny_')) {
         const requestId = customId.replace('deny_', '');
-        await denyRequest(requestId, 'discord');
-        await interaction.reply({ content: '❌ Request denied!', ephemeral: true });
+        const result = await denyRequest(requestId, 'discord');
+        
+        if (result.success) {
+          await interaction.reply({ content: '❌ Request denied!', ephemeral: true });
+          await disableButtons(requestId);
+        } else {
+          await interaction.reply({ content: `❌ ${result.error}`, ephemeral: true });
+        }
       }
     });
 
@@ -41,9 +54,36 @@ export async function sendDiscordNotification(notification: NotificationAPI, req
     discordClients.set(notification.secret, client);
   }
 
-  const channel = await client.channels.fetch(notification.channel) as TextChannel;
+  let channelId = notification.channel;
+  
+  if (channelId.startsWith('#') || channelId.startsWith('<#')) {
+    const guilds = await client.guilds.fetch();
+    for (const [_, guild] of guilds) {
+      const fetchedGuild = await guild.fetch();
+      const channels = await fetchedGuild.channels.fetch();
+      const targetName = channelId.replace(/^#|^<#|>/g, '');
+      const found = channels.find(c => c?.name === targetName);
+      if (found) {
+        channelId = found.id;
+        break;
+      }
+    }
+  }
+  
+  const channel = await client.channels.fetch(channelId) as TextChannel;
   if (!channel) {
-    console.error(`Channel ${notification.channel} not found`);
+    console.error(`Channel ${channelId} not found`);
+    return;
+  }
+
+  if (!client.user) {
+    console.error(`Client user not initialized`);
+    return;
+  }
+  
+  const permissions = channel.permissionsFor(client.user);
+  if (!permissions || !permissions.has('SendMessages')) {
+    console.error(`Bot doesn't have permission to send messages in channel ${channelId}`);
     return;
   }
 
@@ -61,7 +101,7 @@ export async function sendDiscordNotification(notification: NotificationAPI, req
     timestamp: new Date().toISOString()
   };
 
-  await channel.send({
+  const sentMessage = await channel.send({
     embeds: [embed],
     components: [
       {
@@ -85,4 +125,35 @@ export async function sendDiscordNotification(notification: NotificationAPI, req
       }
     ]
   });
+
+  discordMessages.set(requestData.requestId, sentMessage);
+}
+
+async function disableButtons(requestId: string): Promise<void> {
+  const message = discordMessages.get(requestId);
+  if (!message) return;
+
+  const disabledComponents = {
+    type: 1,
+    components: [
+      {
+        type: 2,
+        style: 3,
+        label: 'Approve',
+        custom_id: `approve_${requestId}`,
+        emoji: { name: '✅' },
+        disabled: true
+      },
+      {
+        type: 2,
+        style: 4,
+        label: 'Deny',
+        custom_id: `deny_${requestId}`,
+        emoji: { name: '❌' },
+        disabled: true
+      }
+    ]
+  };
+
+  await message.edit({ components: [disabledComponents] });
 }

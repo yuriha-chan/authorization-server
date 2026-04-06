@@ -22,7 +22,7 @@ export class CreateGrantApiType1704067200001 implements MigrationInterface {
       true
     );
 
-    const templatesDir = path.join(__dirname, '../../templates/github');
+    const templatesDir = path.join(process.cwd(), 'templates', 'github');
     const grantCode = fs.readFileSync(path.join(templatesDir, 'grant.js'), 'utf-8');
     const revokeCode = fs.readFileSync(path.join(templatesDir, 'revoke.js'), 'utf-8');
     const getStatusCode = fs.readFileSync(path.join(templatesDir, 'getStatus.js'), 'utf-8');

@@ -299,6 +299,25 @@ function loadKeys() {
   return { privateKey, publicKey, fingerprint };
 }
 
+// Load key from file or use directly
+function loadKey(keyOrFile) {
+  if (!keyOrFile) {
+    return null;
+  }
+  if (keyOrFile.startsWith('@')) {
+    const filePath = keyOrFile.slice(1);
+    if (!fs.existsSync(filePath)) {
+      console.error(`Error: Key file not found: ${filePath}`);
+      exit(2);
+    }
+    return fs.readFileSync(filePath, 'utf-8').trim();
+  }
+  if (fs.existsSync(keyOrFile)) {
+    return fs.readFileSync(keyOrFile, 'utf-8').trim();
+  }
+  return keyOrFile;
+}
+
 // Parse repository spec: repo[r][w]
 function parseRepositorySpec(spec) {
   const match = spec.match(/^([^\[]+)(?:\[([rw]+)\])?$/);
@@ -432,12 +451,12 @@ async function cmdRegister(options) {
 }
 
 // Send REST request to create authorization
-async function sendRestRequest(options, keys, requestId) {
+async function sendRestRequest(options, keys, loadedKey, requestId) {
   return new Promise((resolve, reject) => {
     const realm = parseRepositorySpec(options.repositorySpec);
     const timestamp = Date.now();
     const body = {
-      serviceAccessKey: options.key,
+      serviceAccessKey: loadedKey,
       realm,
       grantApi: options.grantApiName
     };
@@ -556,6 +575,7 @@ async function cmdListGrants(options) {
 async function cmdRequest(options) {
   const keys = loadKeys();
   const requestId = crypto.randomUUID();
+  const loadedKey = loadKey(options.key);
   
   const wsUrl = `ws://${options.host}:${options.port}/api/agent/ws`;
   console.log(`Connecting to ${wsUrl}...`);
@@ -621,10 +641,11 @@ async function cmdRequest(options) {
               if (!restRequestSent) {
                 restRequestSent = true;
                 try {
-                  const pendingRequestId = await sendRestRequest(options, keys, requestId);
+                  const pendingRequestId = await sendRestRequest(options, keys, loadedKey, requestId);
                   console.log(`Waiting for approval of request: ${pendingRequestId}`);
                 } catch (err) {
-                  console.error('Failed to send request:', err.message);
+                  console.error(`Sent request: ${JSON.stringify({options, keys, loadedKey, requestId})}`);
+                  console.error(`Failed to send request: ${JSON.stringify(err.message)}`);
                   ws.close();
                   exit(2);
                 }
