@@ -69,7 +69,9 @@ app.use('/api/requests', requestsRouter);
 app.use('/api/authorizations', authorizationsRouter);
 app.use('/api/events', eventsRouter);
 
-// deliver frontend
+// Apply authentication middleware to all API routes
+app.use('/api', authenticateAdmin);
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });

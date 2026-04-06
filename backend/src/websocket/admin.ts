@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { WebSocketManager } from './manager';
 import { eventBus } from '../events/pubsub';
 import { eventNotifier } from '../events/logger';
+import { notify } from '../services/notification';
 import { randomUUID } from 'crypto';
 import { parse as parseCookie } from 'cookie';
 
@@ -155,6 +156,7 @@ export class AdminWebSocket {
         type: data.grantApiType,
         timestamp: data.timestamp
       });
+      await notify(data);
     });
     
     eventBus.subscribe('request:approved', async (data) => {

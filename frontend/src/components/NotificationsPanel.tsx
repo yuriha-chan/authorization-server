@@ -1,10 +1,12 @@
 /** @format */
 
 import { useState } from 'react';
-import { Box, VStack, HStack, Text, Badge, Button, Heading, Dialog, Field, Input, IconButton, Flex } from '@chakra-ui/react';
+import { Box, VStack, HStack, Text, Badge, Button, Heading, Dialog, Field, Input, IconButton, Flex, NativeSelect } from '@chakra-ui/react';
 import { useDisclosure } from '@chakra-ui/react';
 import { useColorModeValue } from '../hooks/useColorMode';
 import type { NotificationAPI } from '../types';
+
+const notificationTypes = ['discord'] as const;
 
 interface NotifFormProps {
   initial?: Partial<NotificationAPI> | null;
@@ -28,6 +30,30 @@ const NotifForm = ({ initial, onSave, onCancel }: NotifFormProps) => {
 
   return (
     <VStack gap={4} align="stretch">
+      <Field.Root>
+        <Field.Label
+          fontSize="11px"
+          fontFamily="mono"
+          letterSpacing="0.08em"
+          textTransform="uppercase"
+          color="gray.500"
+        >
+          Type
+        </Field.Label>
+        <NativeSelect.Root>
+          <NativeSelect.Field
+            value={form.type || 'discord'}
+            onChange={(e) => f('type')(e.target.value)}
+          >
+            {notificationTypes.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </NativeSelect.Field>
+          <NativeSelect.Indicator />
+        </NativeSelect.Root>
+      </Field.Root>
       {(['name', 'baseURL', 'account', 'channel'] as const).map((k) => (
         <Field.Root key={k}>
           <Field.Label
