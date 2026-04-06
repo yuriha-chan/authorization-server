@@ -76,10 +76,16 @@ requestsRouter.post('/:id/approve', async (req, res) => {
     let grantResult;
     try {
       grantResult = await executeGrantCode(
-        grantApiTypeName,
-        secrets,
-        grant.account,
-        auth.realm
+        {
+          id: auth.id,
+          realm: auth.realm,
+          grantApi: {
+            name: grantApiTypeName,
+            baseUrl: grant.baseURL
+          }
+        },
+        auth.key,
+        secrets.token || secrets
       );
     } catch (execError: any) {
       // Grant code execution failed - mark authorization as failed
@@ -131,8 +137,8 @@ requestsRouter.post('/:id/approve', async (req, res) => {
     
     // Authorizationを有効化
     auth.state = 'active';
-    auth.token = grantResult.token || '';
-    auth.metadata = grantResult;
+    auth.token = (grantResult.data as any)?.token || (grantResult.data as any)?.id || '';
+    auth.metadata = grantResult.data;
     if (revokeTime) {
       auth.revokeTime = new Date(Date.now() + revokeTime);
     }
@@ -145,7 +151,7 @@ requestsRouter.post('/:id/approve', async (req, res) => {
     // WebSocketでAdminに通知 (topic based)
     adminWebSocket.broadcastToTopic('pending_requests', 'request_approved', { 
       requestId: request.id,
-      grantResult: { token: grantResult.token, executed: true }
+      grantResult: { token: (grantResult.data as any)?.id, executed: true }
     });
     
     // Redis経由でAgentプロセスに通知
@@ -156,12 +162,12 @@ requestsRouter.post('/:id/approve', async (req, res) => {
       fingerprint: auth.container.fingerprint,
       realm: auth.realm,
       admin: req.ip,
-      grantResult: { token: grantResult.token, executed: true }
+      grantResult: { token: (grantResult.data as any)?.id, executed: true }
     });
     
     res.json({ 
       message: 'Request approved successfully',
-      grantResult: { token: grantResult.token, executed: true }
+      grantResult: { token: (grantResult.data as any)?.id, executed: true }
     });
   } catch (error) {
     console.error(error);

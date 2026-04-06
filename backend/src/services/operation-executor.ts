@@ -20,23 +20,21 @@ interface StatusResult {
 }
 
 export async function executeGrantCode(
-  typeName: string,
-  secrets: Record<string, any>,
-  account: string,
-  realm: { repository: string; read: number; write: number }
-): Promise<GrantResult> {
+  auth: { id: string; realm: { repository: string; read: number; write: number }; grantApi: { baseUrl: string; name: string } },
+  key: string,
+  secret: string
+): Promise<{ data: any; autoExpiry: boolean }> {
   const typeRepo = AppDataSource.getRepository(GrantApiType);
-  const grantType = await typeRepo.findOneBy({ name: typeName });
+  const grantType = await typeRepo.findOneBy({ name: auth.grantApi.name });
   
   if (!grantType) {
-    throw new Error(`Grant API type '${typeName}' not found`);
+    throw new Error(`Grant API type '${auth.grantApi.name}' not found`);
   }
 
-  // Create a sandboxed function from the grantCode
   const sandbox = {
-    secrets,
-    account,
-    realm,
+    auth,
+    key,
+    secret,
     console,
     setTimeout,
     clearTimeout,
@@ -62,29 +60,30 @@ export async function executeGrantCode(
   const fn = new Function(...Object.keys(sandbox), `
     "use strict";
     ${grantType.grantCode}
-    return grant(secrets, account, realm);
+    return grant(auth, key, secret);
   `);
 
   return await fn(...Object.values(sandbox));
 }
 
 export async function executeRevokeCode(
-  typeName: string,
-  secrets: Record<string, any>,
-  account: string,
-  token: string
-): Promise<RevokeResult> {
+  auth: { id: string; realm: { repository: string; read: number; write: number }; grantApi: { baseUrl: string; name: string } },
+  key: string,
+  secret: string,
+  data: any
+): Promise<{ revoked: boolean }> {
   const typeRepo = AppDataSource.getRepository(GrantApiType);
-  const grantType = await typeRepo.findOneBy({ name: typeName });
+  const grantType = await typeRepo.findOneBy({ name: auth.grantApi.name });
   
   if (!grantType) {
-    throw new Error(`Grant API type '${typeName}' not found`);
+    throw new Error(`Grant API type '${auth.grantApi.name}' not found`);
   }
 
   const sandbox = {
-    secrets,
-    account,
-    token,
+    auth,
+    key,
+    secret,
+    data,
     console,
     setTimeout,
     clearTimeout,
@@ -110,29 +109,30 @@ export async function executeRevokeCode(
   const fn = new Function(...Object.keys(sandbox), `
     "use strict";
     ${grantType.revokeCode}
-    return revoke(secrets, account, token);
+    return revoke(auth, key, secret, data);
   `);
 
   return await fn(...Object.values(sandbox));
 }
 
 export async function executeGetStatusCode(
-  typeName: string,
-  secrets: Record<string, any>,
-  account: string,
-  token: string
-): Promise<StatusResult> {
+  auth: { id: string; realm: { repository: string; read: number; write: number }; grantApi: { baseUrl: string; name: string } },
+  key: string,
+  secret: string,
+  data: any
+): Promise<{ status: string }> {
   const typeRepo = AppDataSource.getRepository(GrantApiType);
-  const grantType = await typeRepo.findOneBy({ name: typeName });
+  const grantType = await typeRepo.findOneBy({ name: auth.grantApi.name });
   
   if (!grantType) {
-    throw new Error(`Grant API type '${typeName}' not found`);
+    throw new Error(`Grant API type '${auth.grantApi.name}' not found`);
   }
 
   const sandbox = {
-    secrets,
-    account,
-    token,
+    auth,
+    key,
+    secret,
+    data,
     console,
     setTimeout,
     clearTimeout,
@@ -158,7 +158,7 @@ export async function executeGetStatusCode(
   const fn = new Function(...Object.keys(sandbox), `
     "use strict";
     ${grantType.getStatusCode}
-    return getStatus(secrets, account, token);
+    return getStatus(auth, key, secret, data);
   `);
 
   return await fn(...Object.values(sandbox));
