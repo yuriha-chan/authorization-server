@@ -5,7 +5,7 @@ async function grant(auth, key, secret) {
 
   const payload = {
     title: `auth-server-${auth.id}`,
-    key: publicKey,
+    key: key,
     read_only: !auth.realm.write
   };
 
