@@ -105,7 +105,7 @@ function parseArgs() {
       type: args[1],
       baseUrl: null,
       host: process.env.AGENT_HOST || 'localhost',
-      port: process.env.AGENT_PORT || '9080',
+      port: process.env.AGENT_PORT || '8080',
     };
 
     // Find where flags start (either at index 2 if baseUrl is not a flag, or find first flag)
@@ -145,7 +145,7 @@ function parseArgs() {
       key: args[2],
       repositorySpec: args[3],
       host: process.env.AGENT_HOST || 'localhost',
-      port: process.env.AGENT_PORT || '9080',
+      port: process.env.AGENT_PORT || '8080',
       timeout: parseInt(process.env.TIMEOUT || '300000'),
     };
 
@@ -221,7 +221,7 @@ Commands:
 
     Options:
       -h, --host <host>      Server host (default: localhost)
-      -p, --port <port>      Server port (default: 9080)
+      -p, --port <port>      Server port (default: 8080)
 
   request <grantApiName> <key> <repository[rw]> [options]
     Connect via WebSocket, send REST request, wait for approval
@@ -238,7 +238,7 @@ Commands:
 
     Options:
       -h, --host <host>      Server host (default: localhost)
-      -p, --port <port>      Server port (default: 9080)
+      -p, --port <port>      Server port (default: 8080)
       -t, --timeout <ms>     Timeout in milliseconds (default: 300000)
 
 Environment Variables:
