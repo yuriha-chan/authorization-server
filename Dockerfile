@@ -1,6 +1,6 @@
 FROM node:20-alpine
 
-RUN apk add --no-cache python3 make g++ sqlite3
+RUN apk add --no-cache python3 make g++ redis
 
 WORKDIR /app
 
@@ -24,4 +24,4 @@ COPY frontend/ .
 RUN pnpm run build
 
 WORKDIR /app/backend
-CMD ["pnpm", "run", "start"]
+CMD ["sh", "-c", "redis-server --daemonize yes && pnpm run start"]
