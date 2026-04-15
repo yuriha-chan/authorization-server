@@ -21,5 +21,6 @@ RUN pnpm run build
 WORKDIR /app/backend
 COPY backend backend
 RUN pnpm run build
+RUN pnpm run migration:run
 
 CMD ["pnpm", "run", "start"]
