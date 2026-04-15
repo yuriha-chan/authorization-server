@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && bash scripts/copy-static.sh",
+    "build": "tsc && vite build && sh scripts/copy-static.sh",
     "lint": "eslint .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"

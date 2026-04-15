@@ -1,26 +1,27 @@
 FROM node:20-alpine
 
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ sqlite3
 
 WORKDIR /app
 
 RUN corepack enable pnpm
 
 COPY frontend/package.json frontend/pnpm-lock.yaml ./frontend/
-COPY backend/package.json backend/pnpm-lock.yaml ./backend/
+COPY backend/package.json backend/pnpm-lock.yaml backend/pnpm-workspace.yaml ./backend/
 
 WORKDIR /app/backend
-RUN pnpm config set allow-builds sqlite3 && pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 WORKDIR /app/frontend
 RUN pnpm install --frozen-lockfile
 
-WORKDIR /app/frontend
-COPY frontend frontend
-RUN pnpm run build
-
 WORKDIR /app/backend
-COPY backend backend
+COPY backend/ .
 RUN pnpm run build
 RUN pnpm run migration:run
 
+WORKDIR /app/frontend
+COPY frontend/ .
+RUN pnpm run build
+
+WORKDIR /app/backend
 CMD ["pnpm", "run", "start"]
