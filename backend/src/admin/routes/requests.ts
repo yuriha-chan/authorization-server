@@ -75,18 +75,16 @@ requestsRouter.post('/:id/approve', async (req, res) => {
 
     let grantResult;
     try {
-      grantResult = await executeGrantCode(
-        {
+      grantResult = await executeGrantCode({
           id: auth.id,
           realm: auth.realm,
+          key: auth.key,
           grantApi: {
             name: grantApiTypeName,
-            baseUrl: grant.baseURL
+            baseURL: grant.baseURL,
+            secret: secrets.token || secrets
           }
-        },
-        auth.key,
-        secrets.token || secrets
-      );
+        });
     } catch (execError: any) {
       // Grant code execution failed - mark authorization as failed
       auth.state = 'failed';

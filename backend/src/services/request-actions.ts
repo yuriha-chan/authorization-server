@@ -33,11 +33,24 @@ export async function approveRequest(requestId: string, source: string = 'api'):
     return { success: false, error: 'Grant API type not found' };
   }
 
-  let secrets: Record<string, any>;
-  secrets = grantApi.secret;
+  let parsedSecret: Record<string, any>;
+  try {
+    parsedSecret = JSON.parse(grantApi.secret);
+  } catch {
+    parsedSecret = { token: grantApi.secret };
+  }
 
   try {
-    const grantResult = await executeGrantCode(auth);
+    const grantResult = await executeGrantCode({
+      id: auth.id,
+      realm: auth.realm,
+      key: auth.key,
+      grantApi: {
+        name: grantApiTypeName,
+        baseURL: grantApi.baseURL,
+        secret: parsedSecret.token || parsedSecret
+      }
+    });
 
     request.state = 'approved';
     const historyEntry: any = { action: 'approved', timestamp: new Date(), source };
