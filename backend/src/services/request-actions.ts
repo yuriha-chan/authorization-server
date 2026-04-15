@@ -80,17 +80,31 @@ export async function approveRequest(requestId: string, source: string = 'api'):
 
     return { success: true };
   } catch (execError: any) {
+    const errMsg = execError?.message ?? (execError instanceof Error ? execError.message : String(execError));
+    let specificError = 'Grant code execution failed';
+    if (execError?.name === 'SyntaxError' || errMsg.includes('syntax')) {
+      specificError = `Grant code has a syntax error: ${errMsg}`;
+    } else if (errMsg.includes('fetch') || execError?.cause?.code === 'ECONNREFUSED') {
+      specificError = `Network error while calling grant API: ${errMsg}`;
+    } else if (errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('unauthorized')) {
+      specificError = `Authentication failed with grant API: ${errMsg}`;
+    } else if (errMsg.includes('timeout')) {
+      specificError = `Request timed out: ${errMsg}`;
+    } else if (errMsg && errMsg !== '[object Object]') {
+      specificError = `Grant code runtime error: ${errMsg}`;
+    }
+
     auth.state = 'failed';
     auth.metadata = { 
-      error: 'Grant code execution failed',
-      errorMessage: execError.message,
+      error: specificError,
+      errorMessage: errMsg,
       failedAt: new Date().toISOString()
     };
     
     const historyEntry: any = { 
       action: 'failed', 
       timestamp: new Date(), 
-      error: execError.message 
+      error: specificError 
     };
     request.history = [...(request.history || []), historyEntry];
     
@@ -99,7 +113,7 @@ export async function approveRequest(requestId: string, source: string = 'api'):
       await manager.save(auth);
     });
 
-    return { success: false, error: execError.message };
+    return { success: false, error: specificError };
   }
 }
 

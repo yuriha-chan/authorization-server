@@ -86,11 +86,24 @@ requestsRouter.post('/:id/approve', async (req, res) => {
           }
         });
     } catch (execError: any) {
-      // Grant code execution failed - mark authorization as failed
+      const errMsg = execError?.message ?? (execError instanceof Error ? execError.message : String(execError));
+      let specificError = 'Grant code execution failed';
+      if (execError?.name === 'SyntaxError' || errMsg.includes('syntax')) {
+        specificError = `Grant code has a syntax error: ${errMsg}`;
+      } else if (errMsg.includes('fetch') || execError?.cause?.code === 'ECONNREFUSED') {
+        specificError = `Network error while calling grant API: ${errMsg}`;
+      } else if (errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('unauthorized')) {
+        specificError = `Authentication failed with grant API: ${errMsg}`;
+      } else if (errMsg.includes('timeout')) {
+        specificError = `Request timed out: ${errMsg}`;
+      } else if (errMsg && errMsg !== '[object Object]') {
+        specificError = `Grant code runtime error: ${errMsg}`;
+      }
+
       auth.state = 'failed';
       auth.metadata = { 
-        error: 'Grant code execution failed',
-        errorMessage: execError.message,
+        error: specificError,
+        errorMessage: errMsg,
         failedAt: new Date().toISOString()
       };
       
@@ -98,7 +111,7 @@ requestsRouter.post('/:id/approve', async (req, res) => {
         action: 'failed', 
         timestamp: new Date(), 
         admin: req.ip,
-        error: execError.message 
+        error: specificError 
       };
       request.history = [
         ...(request.history || []),
@@ -110,16 +123,17 @@ requestsRouter.post('/:id/approve', async (req, res) => {
         await manager.save(auth);
       });
       
+      const errorDetails = execError.message ?? String(execError);
       // WebSocketでAdminに通知
       adminWebSocket.broadcastToTopic('pending_requests', 'request_failed', { 
         requestId: request.id,
         authorizationId: auth.id,
-        error: execError.message
+        error: specificError
       });
       
       return res.status(500).json({ 
-        error: 'Grant code execution failed',
-        details: execError.message,
+        error: specificError,
+        details: errorDetails,
         authorizationState: 'failed'
       });
     }
