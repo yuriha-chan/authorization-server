@@ -20,9 +20,7 @@ interface StatusResult {
 }
 
 export async function executeGrantCode(
-  auth: { id: string; realm: { repository: string; read: number; write: number }; grantApi: { baseUrl: string; name: string } },
-  key: string,
-  secret: string
+  auth: { id: string; realm: { repository: string; read: number; write: number }; grantApi: { baseURL: string; name: string; secret: string; }; key: string; },
 ): Promise<{ data: any; autoExpiry: boolean }> {
   const typeRepo = AppDataSource.getRepository(GrantApiType);
   const grantType = await typeRepo.findOneBy({ name: auth.grantApi.name });
@@ -33,8 +31,6 @@ export async function executeGrantCode(
 
   const sandbox = {
     auth,
-    key,
-    secret,
     console,
     setTimeout,
     clearTimeout,
@@ -60,16 +56,14 @@ export async function executeGrantCode(
   const fn = new Function(...Object.keys(sandbox), `
     "use strict";
     ${grantType.grantCode}
-    return grant(auth, key, secret);
+    return grant(auth);
   `);
 
   return await fn(...Object.values(sandbox));
 }
 
 export async function executeRevokeCode(
-  auth: { id: string; realm: { repository: string; read: number; write: number }; grantApi: { baseUrl: string; name: string } },
-  key: string,
-  secret: string,
+  auth: { id: string; realm: { repository: string; read: number; write: number }; grantApi: { baseURL: string; name: string; secret: string; }; key: string; },
   data: any
 ): Promise<{ revoked: boolean }> {
   const typeRepo = AppDataSource.getRepository(GrantApiType);
@@ -81,8 +75,6 @@ export async function executeRevokeCode(
 
   const sandbox = {
     auth,
-    key,
-    secret,
     data,
     console,
     setTimeout,
@@ -109,16 +101,14 @@ export async function executeRevokeCode(
   const fn = new Function(...Object.keys(sandbox), `
     "use strict";
     ${grantType.revokeCode}
-    return revoke(auth, key, secret, data);
+    return revoke(auth, data);
   `);
 
   return await fn(...Object.values(sandbox));
 }
 
 export async function executeGetStatusCode(
-  auth: { id: string; realm: { repository: string; read: number; write: number }; grantApi: { baseUrl: string; name: string } },
-  key: string,
-  secret: string,
+  auth: { id: string; realm: { repository: string; read: number; write: number }; grantApi: { baseURL: string; name: string; secret: string; }; key: string; },
   data: any
 ): Promise<{ status: string }> {
   const typeRepo = AppDataSource.getRepository(GrantApiType);
@@ -130,8 +120,6 @@ export async function executeGetStatusCode(
 
   const sandbox = {
     auth,
-    key,
-    secret,
     data,
     console,
     setTimeout,
@@ -158,7 +146,7 @@ export async function executeGetStatusCode(
   const fn = new Function(...Object.keys(sandbox), `
     "use strict";
     ${grantType.getStatusCode}
-    return getStatus(auth, key, secret, data);
+    return getStatus(auth, data);
   `);
 
   return await fn(...Object.values(sandbox));

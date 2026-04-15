@@ -33,28 +33,11 @@ export async function approveRequest(requestId: string, source: string = 'api'):
     return { success: false, error: 'Grant API type not found' };
   }
 
-  const grant = await findGrantForType(grantApiTypeName);
-  if (!grant) {
-    return { success: false, error: `No active Grant API found for type '${grantApiTypeName}'` };
-  }
-
   let secrets: Record<string, any>;
-  try {
-    secrets = JSON.parse(grant.secret);
-  } catch {
-    secrets = { token: grant.secret };
-  }
+  secrets = grantApi.secret;
 
   try {
-    const grantResult = await executeGrantCode(
-      {
-        id: auth.id,
-        realm: auth.realm,
-        grantApi: { name: grantApiTypeName, baseUrl: grant.baseURL }
-      },
-      auth.key,
-      secrets.token || secrets
-    );
+    const grantResult = await executeGrantCode(auth);
 
     request.state = 'approved';
     const historyEntry: any = { action: 'approved', timestamp: new Date(), source };
@@ -64,7 +47,7 @@ export async function approveRequest(requestId: string, source: string = 'api'):
     request.history = [...(request.history || []), historyEntry];
 
     auth.state = 'active';
-    auth.token = (grantResult.data as any)?.token || (grantResult.data as any)?.id || '';
+    auth.token = (grantResult.data as any)?.token || '';
     auth.metadata = grantResult.data;
 
     await AppDataSource.transaction(async (manager) => {
@@ -79,7 +62,7 @@ export async function approveRequest(requestId: string, source: string = 'api'):
       fingerprint: auth.container?.fingerprint,
       realm: auth.realm,
       admin: source,
-      grantResult: { token: (grantResult.data as any)?.id, executed: true }
+      grantResult: { token: (grantResult.data as any)?.token, executed: true }
     });
 
     return { success: true };

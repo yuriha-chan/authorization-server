@@ -1,18 +1,18 @@
-async function grant(auth, key, secret) {
-  const [owner, repo] = auth.realm.repository.split("/");
-  const baseUrl = auth.grantApi.baseUrl;
-  const endpoint = `${baseUrl}/repos/${owner}/${repo}/keys`;
+async function grant({ id, realm, grantApi, key }) {
+  const [owner, repo] = realm.repository.split("/");
+  const baseURL = grantApi.baseURL;
+  const endpoint = `${baseURL}/repos/${owner}/${repo}/keys`;
 
   const payload = {
-    title: `auth-server-${auth.id}`,
+    title: `auth-server-${id}`,
     key: key,
-    read_only: !auth.realm.write
+    read_only: !realm.write
   };
 
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${secret}`,
+      'Authorization': `Bearer ${grantApi.secret}`,
       'Accept': 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
       'Content-Type': 'application/json'

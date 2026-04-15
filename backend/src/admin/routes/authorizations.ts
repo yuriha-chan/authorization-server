@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { AppDataSource } from '../../db/data-source';
 import { Authorization } from '../../entities/Authorization';
 import { AuthorizationRequest } from '../../entities/AuthorizationRequest';
+import { executeRevokeCode } from '../../services/operation-executor';
 
 export const authorizationsRouter = Router();
 
@@ -46,7 +47,10 @@ authorizationsRouter.get('/:id', async (req, res) => {
 authorizationsRouter.patch('/:id', async (req, res) => {
   try {
     const repo = AppDataSource.getRepository(Authorization);
-    const auth = await repo.findOneBy({ id: req.params.id });
+    const auth = await repo.findOne({
+      where: { id: req.params.id },
+      relations: ['grantApi', 'grantApi.type']
+    });
     
     if (!auth) {
       return res.status(404).json({ error: 'Authorization not found' });
@@ -54,6 +58,24 @@ authorizationsRouter.patch('/:id', async (req, res) => {
     
     const { revokeTime, state } = req.body;
     if (revokeTime !== undefined) auth.revokeTime = revokeTime;
+    if (state !== undefined && state === 'revoked' && auth.state !== 'revoked') {
+      const key = auth.key;
+      const secret = auth.grantApi.secret;
+      
+      try {
+        const result = await executeRevokeCode(
+          { id: auth.id, realm: auth.realm, grantApi: { ...auth.grantApi }, key: auth.key},
+          auth.metadata
+        );
+        
+        if (!result.revoked) {
+          return res.status(400).json({ error: 'Revoke operation returned false' });
+        }
+      } catch (err) {
+        console.error('Error executing revoke code:', err);
+        return res.status(500).json({ error: 'Failed to execute revoke code: ' + (err as Error).message });
+      }
+    }
     if (state !== undefined) auth.state = state;
     
     await repo.save(auth);
