@@ -82,7 +82,7 @@ const server = new HttpServer(app);
 server.on('error', (err: any) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`Port ${port} is already in use, retrying in 3s...`);
-    setTimeout(() => server.listen(port, '0.0.0.0'), 3000);
+    setTimeout(() => server.listen(port), 3000);
   } else {
     console.error('Server error:', err);
   }
@@ -90,7 +90,7 @@ server.on('error', (err: any) => {
 
 const adminWebSocket = new AdminWebSocket(server);
 
-server.listen(port, '0.0.0.0', () => {
+server.listen(port, null, () => {
   console.log(`Admin API server running on port ${port}`);
   console.log(`Admin WebSocket: ws://localhost:${port}/api/admin/ws`);
 });

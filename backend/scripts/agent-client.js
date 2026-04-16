@@ -44,8 +44,8 @@ function parseArgs() {
   if (command === 'init') {
     const options = {
       command: 'init',
-      host: process.env.AGENT_HOST || 'localhost',
-      port: process.env.AGENT_PORT || '8080',
+      host: process.env.AUTH_SERVER_HOST || 'localhost',
+      port: process.env.AUTH_SERVER_PORT || '8080',
       name: null
     };
 
@@ -73,8 +73,8 @@ function parseArgs() {
   if (command === 'register') {
     const options = {
       command: 'register',
-      host: process.env.AGENT_HOST || 'localhost',
-      port: process.env.AGENT_PORT || '8080',
+      host: process.env.AUTH_SERVER_HOST || 'localhost',
+      port: process.env.AUTH_SERVER_PORT || '8080',
       name: null
     };
 
@@ -104,8 +104,8 @@ function parseArgs() {
       command: 'list-grants',
       type: args[1],
       baseUrl: null,
-      host: process.env.AGENT_HOST || 'localhost',
-      port: process.env.AGENT_PORT || '8080',
+      host: process.env.AUTH_SERVER_HOST || 'localhost',
+      port: process.env.AUTH_SERVER_PORT || '8080',
     };
 
     // Find where flags start (either at index 2 if baseUrl is not a flag, or find first flag)
@@ -144,8 +144,8 @@ function parseArgs() {
       grantApiName: args[1],
       key: args[2],
       repositorySpec: args[3],
-      host: process.env.AGENT_HOST || 'localhost',
-      port: process.env.AGENT_PORT || '8080',
+      host: process.env.AUTH_SERVER_HOST || 'localhost',
+      port: process.env.AUTH_SERVER_PORT || '8080',
       timeout: parseInt(process.env.TIMEOUT || '300000'),
     };
 
@@ -242,8 +242,8 @@ Commands:
       -t, --timeout <ms>     Timeout in milliseconds (default: 300000)
 
 Environment Variables:
-  AGENT_HOST                 Server host
-  AGENT_PORT                 Server port
+  AUTH_SERVER_HOST                 Server host
+  AUTH_SERVER_PORT                 Server port
   TIMEOUT                    Timeout in milliseconds
 
 Exit Codes:
